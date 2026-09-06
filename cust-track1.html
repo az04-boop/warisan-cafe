@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Track Order — Ayam Gepuk Pagoh</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .info-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: var(--shadow-sm);
+        text-align: center;
+      }
+      .info-card .label {
+        font-size: 0.7rem;
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 4px;
+      }
+      .info-card .value {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--text);
+      }
+      .info-card.brand .value {
+        color: var(--brand);
+      }
+      .order-selector {
+        background: #fff;
+        border-radius: 14px;
+        padding: 8px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 14px;
+      }
+      .timeline-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+      }
+      .proof-card {
+        margin-top: 14px;
+        background: #fff;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: var(--shadow-sm);
+      }
+      .chat-card {
+        margin-top: 14px;
+        background: #fff;
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+      }
+      .chat-list {
+        height: 220px;
+        overflow-y: auto;
+        background: #f8f8f8;
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      .chat-msg {
+        max-width: 84%;
+        padding: 9px 11px;
+        border-radius: 14px;
+        margin-bottom: 8px;
+        font-size: 0.86rem;
+      }
+      .chat-msg.customer {
+        background: var(--brand);
+        color: #fff;
+        margin-left: auto;
+      }
+      .chat-msg.rider {
+        background: #fff;
+        border: 1px solid #eee;
+      }
+      .chat-msg small {
+        display: block;
+        opacity: 0.75;
+        font-size: 0.68rem;
+        margin-top: 3px;
+      }
+      .chat-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .chat-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #dc3545;
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 800;
+        padding: 0 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-shell" style="padding-bottom: 90px">
+      <div id="header"></div>
+
+      <div class="page-pad">
+        <div class="info-grid">
+          <div class="info-card brand">
+            <div class="label">
+              <i class="bi bi-clock me-1"></i>Estimated Time
+            </div>
+            <div class="value">—
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="label">
+              <i class="bi bi-receipt me-1"></i>Order Number
+            </div>
+            <div class="value" id="orderNo">—</div>
+          </div>
+        </div>
+
+        <div class="order-selector">
+          <select
+            id="orderSelect"
+            class="form-select"
+            onchange="renderTrack()"
+            style="background: #fff"
+          ></select>
+        </div>
+
+        <div class="timeline-card">
+          <h6 class="fw-bold mb-3">
+            <i class="bi bi-truck me-2 text-brand"></i>Delivery Progress
+          </h6>
+          <div id="trackBox"></div>
+        </div>
+
+        <div id="proofBox"></div>
+
+        <div class="chat-card" id="chatCard" style="display: none">
+          <div class="chat-head mb-2">
+            <h6 class="fw-bold mb-0">
+              <i class="bi bi-chat-dots-fill me-2 text-brand"></i>Chat with
+              Runner
+            </h6>
+            <span id="chatBadge" class="chat-badge" style="display: none"
+              >0</span
+            >
+          </div>
+          <div class="chat-list" id="chatList"></div>
+          <div class="input-group">
+            <input
+              class="form-control"
+              id="chatInput"
+              placeholder="Message runner about your delivery..."
+            />
+            <button class="btn btn-brand" id="sendChatBtn" type="button">
+              <i class="bi bi-send"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="text-center mt-4">
+          <a href="cust-receipt1.html" class="btn btn-outline-brand"
+            ><i class="bi bi-receipt me-1"></i> View Digital Receipt</a
+          >
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <a href="cust-menu1.html"><i class="bi bi-house-door"></i>Menu</a>
+        <a href="cust-cart1.html"><i class="bi bi-cart"></i>Cart</a>
+        <a href="cust-track1.html" class="active"
+          ><i class="bi bi-card-list-fill"></i>Track</a
+        >
+        <a href="cust-profile1.html"><i class="bi bi-person"></i>Profile</a>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (async () => {
+        const sess = await AG.requireRole(["customer"]);
+        if (!sess) return;
+        document.getElementById("header").innerHTML = AG.header(
+          "Order Tracking",
+          "customer",
+        );
+
+        function myOrders() {
+          return AG.orders().filter(
+            (o) =>
+              !sess.email ||
+              o.email === sess.email ||
+              o.customerUid === sess.uid,
+          );
+        }
+
+        function renderSelect() {
+          const sel = document.getElementById("orderSelect");
+          const current = sel.value;
+          const arr = myOrders();
+          sel.innerHTML = arr
+            .map(
+              (o) =>
+                `<option value="${o.id}">${o.id} — ${AG.STEP_LABELS[o.status]}</option>`,
+            )
+            .join("");
+          const last = AG.get("lastOrderId", "");
+          sel.value = current || last || arr[0]?.id || "";
+        }
+
+        function renderTrack() {
+          const sel = document.getElementById("orderSelect");
+          const o =
+            AG.orders().find((x) => x.id === sel.value) || myOrders()[0];
+          const trackBox = document.getElementById("trackBox");
+          const proofBox = document.getElementById("proofBox");
+          if (!o) {
+            document.getElementById("orderNo").textContent = "—";
+            trackBox.innerHTML = `<div class="empty-state" style="padding:30px 10px;"><i class="bi bi-inbox"></i><h6>No active order</h6><p>Your future orders will be tracked here.</p></div>`;
+            proofBox.innerHTML = "";
+            renderChat(null);
+            return;
+          }
+          document.getElementById("orderNo").textContent = o.id;
+          const current = AG.ORDER_STEPS.indexOf(o.status);
+          trackBox.innerHTML = AG.ORDER_STEPS.map((st, i) => {
+            const cls =
+              i < current ? "done" : i === current ? "current" : "pending";
+            const histEntry = o.history?.find((h) => h.status === st);
+            const time = histEntry
+              ? new Date(histEntry.at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "";
+            return `<div class="status-step ${cls}">
+        <div class="status-dot"></div>
+        <div>
+          <h6>${AG.STEP_LABELS[st]}</h6>
+          <small>${i <= current ? "Updated" : "Waiting"} ${time ? "• " + time : ""}</small>
+        </div>
+      </div>`;
+          }).join("");
+          proofBox.innerHTML =
+            o.proofUrl || o.proof
+              ? `<div class="proof-card"><h6 class="fw-bold mb-2"><i class="bi bi-camera-fill me-2 text-green"></i>Proof of Delivery</h6><img class="proof-img" src="${o.proofUrl || o.proof}"><p class="small text-muted mt-2 mb-0">${o.notes || ""}</p></div>`
+              : "";
+          renderChat(o);
+        }
+
+        function currentOrder() {
+          const sel = document.getElementById("orderSelect");
+          return AG.orders().find((x) => x.id === sel.value) || myOrders()[0];
+        }
+
+        function renderChat(order) {
+          const card = document.getElementById("chatCard");
+          const list = document.getElementById("chatList");
+          if (!order) {
+            card.style.display = "none";
+            return;
+          }
+          card.style.display = "block";
+          const unread = AG.unreadChatCount(order.id, "customer");
+          const badge = document.getElementById("chatBadge");
+          if (badge) {
+            badge.style.display = unread ? "inline-flex" : "none";
+            badge.textContent = unread > 9 ? "9+" : unread;
+          }
+          if (unread) {
+            setTimeout(() => AG.markChatRead(order.id).catch(() => {}), 1200);
+          }
+          const msgs = AG.getChatMessages(order.id);
+          list.innerHTML = msgs.length
+            ? msgs
+                .map(
+                  (m) => `
+      <div class="chat-msg ${m.senderRole === "customer" ? "customer" : "rider"}">
+        <strong>${m.senderRole === "customer" ? "You" : "Runner"}</strong><br>${m.text}
+        <small>${m.at ? new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small>
+      </div>
+    `,
+                )
+                .join("")
+            : '<p class="text-muted text-center small mt-4">No messages yet. Chat with your runner here.</p>';
+          list.scrollTop = list.scrollHeight;
+        }
+
+        document
+          .getElementById("sendChatBtn")
+          .addEventListener("click", async () => {
+            const order = currentOrder();
+            const input = document.getElementById("chatInput");
+            if (!order) return;
+            try {
+              await AG.sendChatMessage(order.id, input.value, "customer");
+              input.value = "";
+              renderChat(order);
+            } catch (err) {
+              AG.toast("Message failed", err.message);
+            }
+          });
+        document
+          .getElementById("chatInput")
+          .addEventListener("keydown", (e) => {
+            if (e.key === "Enter")
+              document.getElementById("sendChatBtn").click();
+          });
+
+        window.refresh = function () {
+          renderSelect();
+          renderTrack();
+          AG.checkNotifications();
+        };
+        window.renderTrack = renderTrack;
+
+        refresh();
+        setInterval(refresh, 4000);
+        window.addEventListener("ag-data", refresh);
+      })();
+    </script>
+  </body>
+</html>

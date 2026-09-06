@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Admin Batch</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://www.gstatic.com" />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      body {
+        background: #f5f6f8;
+      }
+      .admin-layout {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 240px;
+        background: #b94b4d;
+        color: white;
+        padding: 24px 18px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        overflow-y: auto;
+      }
+      .sidebar-logo {
+        width: 78px;
+        height: 78px;
+        object-fit: contain;
+        background: white;
+        border-radius: 8px;
+        padding: 4px;
+        display: block;
+        margin: 0 auto 14px;
+      }
+      .sidebar h5 {
+        text-align: center;
+        font-weight: 800;
+        margin-bottom: 28px;
+      }
+      .nav-link-admin {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+        text-decoration: none;
+        padding: 12px 14px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 0;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+      }
+      .nav-link-admin:hover,
+      .nav-link-admin.active {
+        background: white;
+        color: #b94b4d;
+      }
+      .admin-main {
+        margin-left: 240px;
+        padding: 28px;
+        width: calc(100% - 240px);
+      }
+      .dashboard-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .card-soft {
+        background: white;
+        border: 0;
+        border-radius: 20px;
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+        padding: 22px;
+      }
+      .form-control,
+      .form-select {
+        border: none;
+        background: #f1f1f1;
+        border-radius: 12px;
+        min-height: 46px;
+      }
+      .btn-brand {
+        background: #b94b4d;
+        color: white;
+        border-radius: 12px;
+        border: none;
+        font-weight: 700;
+      }
+      .btn-brand:hover {
+        background: #a73f42;
+        color: white;
+      }
+      .badge-red {
+        background: #dc3545;
+        color: white;
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .small-muted {
+        color: #6c757d;
+        font-size: 13px;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .stat-box {
+        background: #fff;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+      }
+      .stat-box span {
+        color: #6c757d;
+        font-size: 13px;
+      }
+      .stat-box strong {
+        display: block;
+        font-size: 24px;
+      }
+      .menu-img-table {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 14px;
+        background: #f1f1f1;
+      }
+      .preview-box {
+        width: 135px;
+        height: 135px;
+        border-radius: 18px;
+        background: #f1f1f1;
+        border: 2px dashed #d7d7d7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: #777;
+        text-align: center;
+        font-size: 13px;
+      }
+      .preview-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .option-row,
+      .group-row {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .group-row {
+        grid-template-columns: 1fr 44px;
+      }
+      .option-row {
+        grid-template-columns: 1fr 140px 44px;
+      }
+      .chat-box {
+        height: 300px;
+        overflow-y: auto;
+        background: #f8f8f8;
+        border-radius: 16px;
+        padding: 14px;
+      }
+      .msg {
+        padding: 10px 12px;
+        border-radius: 14px;
+        margin-bottom: 10px;
+        max-width: 85%;
+      }
+      .msg.user {
+        background: #b94b4d;
+        color: #fff;
+        margin-left: auto;
+      }
+      .msg.ai {
+        background: #fff;
+        border: 1px solid #eee;
+      }
+      .sidebar-footer {
+        margin-top: 22px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding-top: 12px;
+      }
+      @media (max-width: 768px) {
+        .admin-layout {
+          display: block;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          bottom: auto;
+        }
+        .sidebar h5 {
+          margin-bottom: 18px;
+        }
+        .admin-main {
+          margin-left: 0;
+          width: 100%;
+          padding: 18px;
+        }
+        .dashboard-top {
+          flex-direction: column;
+        }
+        .stat-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .option-row,
+        .group-row {
+          grid-template-columns: 1fr;
+        }
+        .table-responsive {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-layout">
+      <aside class="sidebar">
+        <img src="images/logo.png" class="sidebar-logo" alt="Logo" />
+        <h5>ADMIN PORTAL</h5>
+        <a class="nav-link-admin" href="admin-dashboard1.html"
+          ><i class="bi bi-speedometer2"></i> Orders</a
+        ><a class="nav-link-admin active" href="admin-batch1.html"
+          ><i class="bi bi-calendar-plus"></i> Batch</a
+        ><a class="nav-link-admin" href="admin-menu1.html"
+          ><i class="bi bi-list-ul"></i> Menu</a
+        ><a class="nav-link-admin" href="admin-ai1.html"
+          ><i class="bi bi-robot"></i>Inventory</a
+        >
+        <div class="sidebar-footer">
+          <button class="nav-link-admin" onclick="AG.logout()">
+            <i class="bi bi-box-arrow-left"></i> Logout
+          </button>
+        </div>
+      </aside>
+      <main class="admin-main">
+        <div class="dashboard-top">
+          <div>
+            <h2 class="fw-bold mb-1">Batch Management</h2>
+            <p class="text-muted mb-0">
+              Let's manage your delivery batches and keep track of today's
+              orders!
+            </p>
+          </div>
+          <div class="badge-red">Today Pax: <span id="todayPax">0</span></div>
+        </div>
+        <div class="card-soft mb-4">
+          <h4 class="fw-bold mb-3" id="batchFormTitle">Create Batch</h4>
+          <input type="hidden" id="editingBatchId" />
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Batch Name</label
+              ><input
+                id="batchNameInput"
+                class="form-control"
+                placeholder="Batch name"
+              />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Date</label
+              ><input type="date" id="batchDateInput" class="form-control" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Start Time</label
+              ><input type="time" id="batchStartInput" class="form-control" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">End Time</label
+              ><input type="time" id="batchEndInput" class="form-control" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Number of Pax</label
+              ><input
+                type="number"
+                id="batchLimitInput"
+                class="form-control"
+                min="1"
+                placeholder="Insert pax limit"
+              />
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+              <button class="btn btn-brand w-100" onclick="saveBatchForm()">
+                Save
+              </button>
+            </div>
+          </div>
+          <div class="form-check mt-3">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="batchManualFull"
+            /><label class="form-check-label" for="batchManualFull"
+              >Set this batch as full manually</label
+            >
+          </div>
+        </div>
+        <div class="card-soft">
+          <h4 class="fw-bold mb-3">Batch List</h4>
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Date</th>
+                  <th>Delivery Time</th>
+                  <th>Pax Used</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="batchBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+    ></script>
+    <script>
+      function orderPaxForBatch(id) {
+        return AG.orders()
+          .filter((o) => o.batchId === id && o.status !== "delivered")
+          .reduce(
+            (sum, o) =>
+              sum +
+              (o.items || []).reduce((a, i) => a + Number(i.quantity || 1), 0),
+            0,
+          );
+      }
+      function batchStatus(b) {
+        const used = orderPaxForBatch(b.id);
+        const limit = Number(b.limit || 0);
+        const manual = !!b.manualFull;
+        return { used, limit, isFull: manual || (limit > 0 && used >= limit) };
+      }
+      function resetBatchForm() {
+        editingBatchId.value = "";
+        batchFormTitle.textContent = "Create Batch";
+        batchNameInput.value = "";
+        batchDateInput.value = new Date().toISOString().slice(0, 10);
+        batchStartInput.value = "";
+        batchEndInput.value = "";
+        batchLimitInput.value = "";
+        batchManualFull.checked = false;
+      }
+      async function saveBatchForm() {
+        const name = batchNameInput.value.trim();
+        const date = batchDateInput.value;
+        const start = batchStartInput.value;
+        const end = batchEndInput.value;
+        const limit = Number(batchLimitInput.value || 0);
+        if (!name || !date || !start || !end || !limit) {
+          AG.toast("Incomplete batch", "Please fill name, date, time and pax.");
+          return;
+        }
+        const id = editingBatchId.value || `b${Date.now()}`;
+        const old = AG.batches().find((b) => b.id === id) || {};
+        const batch = {
+          ...old,
+          id,
+          name,
+          date,
+          start,
+          end,
+          limit,
+          manualFull: batchManualFull.checked,
+          createdAt: old.createdAt || Date.now(),
+          updatedAt: Date.now(),
+        };
+        const arr = editingBatchId.value
+          ? AG.batches().map((b) => (b.id === id ? batch : b))
+          : [...AG.batches(), batch];
+        await AG.saveBatches(arr);
+        AG.toast("Batch saved", `${name} has been saved.`);
+        resetBatchForm();
+        renderBatches();
+      }
+      function editBatch(id) {
+        const b = AG.batches().find((x) => x.id === id);
+        if (!b) return;
+        editingBatchId.value = b.id;
+        batchFormTitle.textContent = "Edit Batch";
+        batchNameInput.value = b.name || "";
+        batchDateInput.value = b.date || new Date().toISOString().slice(0, 10);
+        batchStartInput.value = b.start || "";
+        batchEndInput.value = b.end || "";
+        batchLimitInput.value = b.limit || "";
+        batchManualFull.checked = !!b.manualFull;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      async function deleteBatch(id) {
+        if (!confirm("Delete this batch?")) return;
+        await AG.saveBatches(AG.batches().filter((b) => b.id !== id));
+        renderBatches();
+      }
+      async function toggleFull(id) {
+        const arr = AG.batches().map((b) =>
+          b.id === id
+            ? { ...b, manualFull: !b.manualFull, updatedAt: Date.now() }
+            : b,
+        );
+        await AG.saveBatches(arr);
+        renderBatches();
+      }
+      function renderBatches() {
+        const list = AG.batches();
+        todayPax.textContent = list.reduce(
+          (a, b) => a + orderPaxForBatch(b.id),
+          0,
+        );
+        if (!list.length) {
+          batchBody.innerHTML =
+            '<tr><td colspan="6" class="text-center text-muted py-4">No batch found.</td></tr>';
+          return;
+        }
+        batchBody.innerHTML = list
+          .map((b) => {
+            const st = batchStatus(b);
+            return `<tr><td><strong>${b.name}</strong></td><td>${b.date || "-"}</td><td>${b.start} - ${b.end}</td><td>${st.used} / ${st.limit}</td><td>${st.isFull ? '<span class="badge bg-danger">FULL</span>' : '<span class="badge bg-success">OPEN</span>'}${b.manualFull ? '<div class="small-muted">Manual full</div>' : ""}</td><td><button class="btn btn-sm btn-outline-primary me-1" onclick="editBatch('${b.id}')">Edit</button><button class="btn btn-sm btn-outline-warning me-1" onclick="toggleFull('${b.id}')">${b.manualFull ? "Reopen" : "Set Full"}</button><button class="btn btn-sm btn-outline-danger" onclick="deleteBatch('${b.id}')">Delete</button></td></tr>`;
+          })
+          .join("");
+      }
+      (async () => {
+        const s = await AG.requireRole(["admin"]);
+        if (!s) return;
+        await AG.init();
+        resetBatchForm();
+        renderBatches();
+        window.addEventListener("ag-data", renderBatches);
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+
+    <title>Payment Return — Ayam Gepuk Pagoh</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+  </head>
+  <body class="login-bg">
+    <div class="login-card text-center">
+      <img src="images/logo.png" class="logo-float" alt="Logo" />
+      <div id="stateBox" class="mt-4">
+        <div class="spinner-border text-danger mb-3"></div>
+        <h5 class="fw-bold">Verifying Stripe Payment...</h5>
+        <p class="text-muted small">
+          Please wait. Your order will be created after payment confirmation.
+        </p>
+      </div>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (async () => {
+        await AG.init();
+        const params = new URLSearchParams(location.search);
+        const sessionId = params.get("session_id");
+        if (!sessionId) {
+          stateBox.innerHTML =
+            '<i class="bi bi-x-circle-fill text-danger fs-1"></i><h5 class="fw-bold mt-3">Payment session missing</h5><a class="btn btn-brand mt-3" href="cust-cart1.html">Back to Cart</a>';
+          return;
+        }
+        try {
+          const res = await fetch(
+            "/api/checkout-session/" + encodeURIComponent(sessionId),
+          );
+          const data = await res.json();
+          if (!res.ok)
+            throw new Error(data.error || "Unable to verify payment.");
+          if (data.payment_status !== "paid") {
+            stateBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill text-warning fs-1"></i><h5 class="fw-bold mt-3">Payment not completed</h5><p class="text-muted small">Status: ${data.payment_status}</p><a class="btn btn-brand mt-3" href="cust-cart1.html">Back to Cart</a>`;
+            return;
+          }
+          const order = await AG.confirmPendingPayment({
+            paymentRef: sessionId,
+            paymentProvider: "Stripe FPX",
+            paymentStatus: "paid",
+          });
+          stateBox.innerHTML = `<i class="bi bi-check-circle-fill text-success fs-1"></i><h5 class="fw-bold mt-3">Payment Successful</h5><p class="text-muted small">Order ${order.id} has been sent to admin.</p><a class="btn btn-brand mt-3" href="cust-track1.html">Track Order</a>`;
+          setTimeout(() => (location.href = "cust-track1.html"), 1200);
+        } catch (err) {
+          console.error(err);
+          stateBox.innerHTML = `<i class="bi bi-x-circle-fill text-danger fs-1"></i><h5 class="fw-bold mt-3">Payment Verification Failed</h5><p class="text-muted small">${err.message}</p><a class="btn btn-brand mt-3" href="cust-cart1.html">Back to Cart</a>`;
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Admin Menu</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      body {
+        background: #f5f6f8;
+      }
+      .admin-layout {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 240px;
+        background: #b94b4d;
+        color: white;
+        padding: 24px 18px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        overflow-y: auto;
+      }
+      .sidebar-logo {
+        width: 78px;
+        height: 78px;
+        object-fit: contain;
+        background: white;
+        border-radius: 8px;
+        padding: 4px;
+        display: block;
+        margin: 0 auto 14px;
+      }
+      .sidebar h5 {
+        text-align: center;
+        font-weight: 800;
+        margin-bottom: 28px;
+      }
+      .nav-link-admin {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+        text-decoration: none;
+        padding: 12px 14px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 0;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+      }
+      .nav-link-admin:hover,
+      .nav-link-admin.active {
+        background: white;
+        color: #b94b4d;
+      }
+      .admin-main {
+        margin-left: 240px;
+        padding: 28px;
+        width: calc(100% - 240px);
+      }
+      .dashboard-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .card-soft {
+        background: white;
+        border: 0;
+        border-radius: 20px;
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+        padding: 22px;
+      }
+      .form-control,
+      .form-select {
+        border: none;
+        background: #f1f1f1;
+        border-radius: 12px;
+        min-height: 46px;
+      }
+      .btn-brand {
+        background: #b94b4d;
+        color: white;
+        border-radius: 12px;
+        border: none;
+        font-weight: 700;
+      }
+      .btn-brand:hover {
+        background: #a73f42;
+        color: white;
+      }
+      .badge-red {
+        background: #dc3545;
+        color: white;
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .small-muted {
+        color: #6c757d;
+        font-size: 13px;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .stat-box {
+        background: #fff;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+      }
+      .stat-box span {
+        color: #6c757d;
+        font-size: 13px;
+      }
+      .stat-box strong {
+        display: block;
+        font-size: 24px;
+      }
+      .menu-img-table {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 14px;
+        background: #f1f1f1;
+      }
+      .preview-box {
+        width: 135px;
+        height: 135px;
+        border-radius: 18px;
+        background: #f1f1f1;
+        border: 2px dashed #d7d7d7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: #777;
+        text-align: center;
+        font-size: 13px;
+      }
+      .preview-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .option-row,
+      .group-row {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .group-row {
+        grid-template-columns: 1fr 210px 44px;
+      }
+      .option-row {
+        grid-template-columns: 1fr 140px 44px;
+      }
+      .chat-box {
+        height: 300px;
+        overflow-y: auto;
+        background: #f8f8f8;
+        border-radius: 16px;
+        padding: 14px;
+      }
+      .msg {
+        padding: 10px 12px;
+        border-radius: 14px;
+        margin-bottom: 10px;
+        max-width: 85%;
+      }
+      .msg.user {
+        background: #b94b4d;
+        color: #fff;
+        margin-left: auto;
+      }
+      .msg.ai {
+        background: #fff;
+        border: 1px solid #eee;
+      }
+      .sidebar-footer {
+        margin-top: 22px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding-top: 12px;
+      }
+      @media (max-width: 768px) {
+        .admin-layout {
+          display: block;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          bottom: auto;
+        }
+        .sidebar h5 {
+          margin-bottom: 18px;
+        }
+        .admin-main {
+          margin-left: 0;
+          width: 100%;
+          padding: 18px;
+        }
+        .dashboard-top {
+          flex-direction: column;
+        }
+        .stat-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .option-row,
+        .group-row {
+          grid-template-columns: 1fr;
+        }
+        .table-responsive {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-layout">
+      <aside class="sidebar">
+        <img src="images/logo.png" class="sidebar-logo" alt="Logo" />
+        <h5>ADMIN PORTAL</h5>
+        <a class="nav-link-admin" href="admin-dashboard1.html"
+          ><i class="bi bi-speedometer2"></i> Orders</a
+        ><a class="nav-link-admin" href="admin-batch1.html"
+          ><i class="bi bi-calendar-plus"></i> Batch</a
+        ><a class="nav-link-admin active" href="admin-menu1.html"
+          ><i class="bi bi-list-ul"></i> Menu</a
+        ><a class="nav-link-admin" href="admin-ai1.html"
+          ><i class="bi bi-robot"></i> AI Inventory</a
+        >
+        <div class="sidebar-footer">
+          <button class="nav-link-admin" onclick="AG.logout()">
+            <i class="bi bi-box-arrow-left"></i> Logout
+          </button>
+        </div>
+      </aside>
+      <main class="admin-main">
+        <div class="dashboard-top">
+          <div>
+            <h2 class="fw-bold mb-1">Menu Management</h2>
+            <p class="text-muted mb-0">
+              Let's manage your menu items, prices and variations
+            </p>
+          </div>
+        </div>
+        <div class="card-soft mb-4">
+          <div
+            class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3"
+          >
+            <div>
+              <h4 class="fw-bold mb-1" id="menuFormTitle">Create New Menu</h4>
+            </div>
+            <button
+              class="btn btn-outline-secondary rounded-3"
+              onclick="resetMenuForm()"
+            >
+              <i class="bi bi-arrow-counterclockwise"></i> Reset
+            </button>
+          </div>
+          <input type="hidden" id="editingMenuId" />
+          <div class="row g-4">
+            <div class="col-lg-2 col-md-3">
+              <label class="form-label fw-semibold">Menu Picture</label>
+              <div class="preview-box mb-2" id="menuImagePreview">
+                <span>No image</span>
+              </div>
+              <input
+                type="file"
+                id="menuImageInput"
+                class="form-control"
+                accept="image/*"
+              />
+            </div>
+            <div class="col-lg-10 col-md-9">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Menu Name</label
+                  ><input
+                    id="menuNameInput"
+                    class="form-control"
+                    placeholder="Ayam Gepuk Set A"
+                  />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Price (RM)</label
+                  ><input
+                    type="number"
+                    id="menuPriceInput"
+                    class="form-control"
+                    min="0"
+                    step="0.10"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Status</label
+                  ><select id="menuStatusInput" class="form-select">
+                    <option value="true">Active</option>
+                    <option value="false">Hidden</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Description</label
+                  ><textarea
+                    id="menuDescInput"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Ayam gepuk, nasi putih, sambal, timun..."
+                  ></textarea>
+                </div>
+                <div class="col-12">
+                  <div
+                    class="d-flex justify-content-between align-items-center mb-2"
+                  >
+                    <label class="form-label fw-semibold mb-0"
+                      >Variation Groups</label
+                    ><button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary rounded-3"
+                      onclick="addGroup()"
+                    >
+                      <i class="bi bi-plus-circle"></i> Add Group
+                    </button>
+                  </div>
+                  <div id="variationGroupBox"></div>
+                </div>
+                <div class="col-12">
+                  <button
+                    class="btn btn-brand px-5"
+                    id="saveMenuBtn"
+                    onclick="saveMenuItem()"
+                  >
+                    <i class="bi bi-save"></i> Save Menu
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-soft">
+          <h4 class="fw-bold mb-3">Menu List</h4>
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Image</th>
+                  <th>Menu</th>
+                  <th>Price</th>
+                  <th>Variations</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="menuBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let selectedMenuImageFile = null;
+      let existingMenuImage = "";
+
+      function escapeHtml(value = "") {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+      }
+
+      function addGroup(name = "", options = [], type = "single") {
+        const safeType = type === "addon" ? "addon" : "single";
+        const safeOptions = Array.isArray(options) ? options : [];
+
+        const wrap = document.createElement("div");
+        wrap.className = "card p-3 mb-3 variation-group";
+        wrap.innerHTML = `
+          <div class="group-row">
+            <input class="form-control group-name" placeholder="Variation group name e.g. Ayam / Add On" value="${escapeHtml(name)}">
+            <select class="form-select group-type">
+              <option value="single" ${safeType === "single" ? "selected" : ""}>Required option</option>
+              <option value="addon" ${safeType === "addon" ? "selected" : ""}>Additional option</option>
+            </select>
+            <button type="button" class="btn btn-outline-danger" onclick="this.closest('.variation-group').remove()">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+          <div class="option-box"></div>
+          <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addOption(this)">
+            <i class="bi bi-plus"></i> Add Option
+          </button>
+          <div class="small-muted mt-2 group-help"></div>
+        `;
+
+        variationGroupBox.appendChild(wrap);
+
+        const typeSelect = wrap.querySelector(".group-type");
+        const help = wrap.querySelector(".group-help");
+
+        function updateHelpText() {
+          help.textContent =
+            typeSelect.value === "addon"
+              ? "Additional option: customer can choose or skip."
+              : "Required option: customer must choose one option.";
+        }
+
+        typeSelect.addEventListener("change", updateHelpText);
+        updateHelpText();
+
+        const box = wrap.querySelector(".option-box");
+        safeOptions.forEach((o) =>
+          addOptionToBox(box, o.name || "", o.price || 0),
+        );
+      }
+
+      function addOption(btn) {
+        addOptionToBox(
+          btn.closest(".variation-group").querySelector(".option-box"),
+          "",
+          0,
+        );
+      }
+
+      function addOptionToBox(box, name = "", price = 0) {
+        const row = document.createElement("div");
+        row.className = "option-row";
+        row.innerHTML = `
+          <input class="form-control option-name" placeholder="Option name e.g. Original / Crispy / Extra Sambal" value="${escapeHtml(name)}">
+          <input type="number" class="form-control option-price" placeholder="Extra RM" value="${Number(price || 0)}" min="0" step="0.10">
+          <button type="button" class="btn btn-outline-danger" onclick="this.closest('.option-row').remove()">
+            <i class="bi bi-x"></i>
+          </button>
+        `;
+        box.appendChild(row);
+      }
+
+      function getVariationGroups() {
+        return [...document.querySelectorAll(".variation-group")]
+          .map((g) => {
+            const name = g.querySelector(".group-name").value.trim();
+            const type =
+              g.querySelector(".group-type")?.value === "addon"
+                ? "addon"
+                : "single";
+            const options = [...g.querySelectorAll(".option-row")]
+              .map((r) => ({
+                name: r.querySelector(".option-name").value.trim(),
+                price: Number(r.querySelector(".option-price").value || 0),
+              }))
+              .filter((o) => o.name);
+
+            return { name, type, required: type === "single", options };
+          })
+          .filter((g) => g.name && g.options.length);
+      }
+
+      function hasInvalidVariationInput() {
+        const groups = [...document.querySelectorAll(".variation-group")];
+
+        for (const group of groups) {
+          const groupName = group.querySelector(".group-name").value.trim();
+          const optionNames = [...group.querySelectorAll(".option-name")]
+            .map((input) => input.value.trim())
+            .filter(Boolean);
+
+          if (!groupName && optionNames.length) {
+            return "Please fill variation group name.";
+          }
+
+          if (groupName && !optionNames.length) {
+            return `Please add at least one option for ${groupName}.`;
+          }
+        }
+
+        return "";
+      }
+
+      function resetMenuForm() {
+        editingMenuId.value = "";
+        menuFormTitle.textContent = "Create New Menu";
+        menuNameInput.value = "";
+        menuDescInput.value = "";
+        menuPriceInput.value = "";
+        menuStatusInput.value = "true";
+        menuImageInput.value = "";
+        selectedMenuImageFile = null;
+        existingMenuImage = "";
+        menuImagePreview.innerHTML = "<span>No image</span>";
+        variationGroupBox.innerHTML = "";
+      }
+
+      menuImageInput.addEventListener("change", () => {
+        const file = menuImageInput.files[0];
+        if (!file) return;
+        selectedMenuImageFile = file;
+        const r = new FileReader();
+        r.onload = (e) =>
+          (menuImagePreview.innerHTML = `<img src="${e.target.result}">`);
+        r.readAsDataURL(file);
+      });
+
+      function resizeImageFile(file, maxSize = 1000, quality = 0.72) {
+        return new Promise((resolve) => {
+          if (!file || !file.type || !file.type.startsWith("image/"))
+            return resolve(file);
+          if (file.size <= 650 * 1024) return resolve(file);
+
+          const img = new Image();
+          const reader = new FileReader();
+
+          reader.onload = (e) => {
+            img.onload = () => {
+              const scale = Math.min(
+                1,
+                maxSize / Math.max(img.width, img.height),
+              );
+              const canvas = document.createElement("canvas");
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) return resolve(file);
+                  resolve(
+                    new File(
+                      [blob],
+                      file.name.replace(/\.[^/.]+$/, "") + ".jpg",
+                      { type: "image/jpeg" },
+                    ),
+                  );
+                },
+                "image/jpeg",
+                quality,
+              );
+            };
+            img.onerror = () => resolve(file);
+            img.src = e.target.result;
+          };
+
+          reader.onerror = () => resolve(file);
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function saveMenuItem() {
+        const name = menuNameInput.value.trim();
+        const desc = menuDescInput.value.trim();
+        const price = Number(menuPriceInput.value || 0);
+        const active = menuStatusInput.value === "true";
+        const invalidVariationMessage = hasInvalidVariationInput();
+        const variationGroups = getVariationGroups();
+
+        if (!name || !desc || !price) {
+          AG.toast(
+            "Incomplete menu",
+            "Please fill name, description and price.",
+          );
+          return;
+        }
+
+        if (invalidVariationMessage) {
+          AG.toast("Variation incomplete", invalidVariationMessage);
+          return;
+        }
+
+        if (!variationGroups.length) {
+          AG.toast(
+            "Variation required",
+            "Please add at least one variation group and option.",
+          );
+          return;
+        }
+
+        const all = AG.menu();
+        const editId = editingMenuId.value;
+        const menuId = editId || `m${Date.now()}`;
+        let image = existingMenuImage || "";
+
+        try {
+          saveMenuBtn.disabled = true;
+          saveMenuBtn.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2"></span>Preparing image...';
+
+          if (selectedMenuImageFile) {
+            const smallerFile = await resizeImageFile(selectedMenuImageFile);
+            saveMenuBtn.innerHTML =
+              '<span class="spinner-border spinner-border-sm me-2"></span>Uploading image...';
+            image = await AG.uploadMenuImage(smallerFile, menuId);
+          }
+
+          if (!image) image = "food1.png";
+
+          saveMenuBtn.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2"></span>Saving menu...';
+
+          const item = {
+            id: menuId,
+            name,
+            desc,
+            price,
+            image,
+            active,
+            variationGroups,
+            createdAt: editId
+              ? all.find((m) => m.id === editId)?.createdAt || Date.now()
+              : Date.now(),
+            updatedAt: Date.now(),
+          };
+
+          await AG.saveMenuItem(item);
+          AG.toast(editId ? "Menu updated" : "Menu added", `${name} saved.`);
+          resetMenuForm();
+          renderMenu();
+        } catch (err) {
+          console.error(err);
+          AG.toast(
+            "Save failed",
+            err.message ||
+              "Please check Firebase Storage or internet connection.",
+          );
+        } finally {
+          saveMenuBtn.disabled = false;
+          saveMenuBtn.innerHTML = '<i class="bi bi-save"></i> Save Menu';
+        }
+      }
+
+      function editMenu(id) {
+        const m = AG.menu().find((x) => x.id === id);
+        if (!m) return;
+        editingMenuId.value = m.id;
+        menuFormTitle.textContent = "Edit Menu";
+        menuNameInput.value = m.name || "";
+        menuDescInput.value = m.desc || "";
+        menuPriceInput.value = m.price || "";
+        menuStatusInput.value = String(m.active !== false);
+        existingMenuImage = m.image || "";
+        selectedMenuImageFile = null;
+        menuImageInput.value = "";
+        menuImagePreview.innerHTML = `<img src="${AG.imageSrc(m.image)}">`;
+        variationGroupBox.innerHTML = "";
+        (m.variationGroups || []).forEach((g) =>
+          addGroup(
+            g.name,
+            g.options,
+            g.type || (g.required === false ? "addon" : "single"),
+          ),
+        );
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      async function deleteMenu(id) {
+        if (!confirm("Delete this menu?")) return;
+        try {
+          await AG.deleteMenuItem(id);
+          AG.toast("Menu deleted", "Menu has been removed.");
+          renderMenu();
+        } catch (err) {
+          AG.toast("Delete failed", err.message);
+        }
+      }
+
+      function renderMenu() {
+        const list = AG.menu();
+        if (!list.length) {
+          menuBody.innerHTML =
+            '<tr><td colspan="6" class="text-center text-muted py-4">No menu found.</td></tr>';
+          return;
+        }
+        menuBody.innerHTML = list
+          .map(
+            (m) =>
+              `<tr><td><img src="${AG.imageSrc(m.image)}" class="menu-img-table"></td><td><strong>${m.name}</strong><div class="small-muted">${m.desc || ""}</div></td><td>RM ${Number(m.price || 0).toFixed(2)}</td><td>${(m.variationGroups || []).map((g) => `<strong>${g.name}</strong> <span class="badge ${g.type === "addon" ? "bg-info" : "bg-danger"}">${g.type === "addon" ? "Add-on" : "Required"}</span>: ${(g.options || []).map((o) => o.name + (Number(o.price) > 0 ? " +RM " + Number(o.price).toFixed(2) : "")).join(", ")}`).join("<br>")}</td><td>${m.active === false ? '<span class="badge bg-secondary">Hidden</span>' : '<span class="badge bg-success">Active</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" onclick="editMenu('${m.id}')">Edit</button><button class="btn btn-sm btn-outline-danger" onclick="deleteMenu('${m.id}')">Delete</button></td></tr>`,
+          )
+          .join("");
+      }
+
+      (async () => {
+        const s = await AG.requireRole(["admin"]);
+        if (!s) return;
+        await AG.init();
+        resetMenuForm();
+        renderMenu();
+        window.addEventListener("ag-data", renderMenu);
+      })();
+    </script>
+  </body>
+</html>

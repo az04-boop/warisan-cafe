@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Cart — Ayam Gepuk Pagoh</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .sub-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+      .sub-header .back {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #f6f4f4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        transition: var(--transition);
+        flex-shrink: 0;
+      }
+      .sub-header .back:hover {
+        background: var(--brand-soft);
+        color: var(--brand);
+      }
+      .sub-header h5 {
+        margin: 0;
+        font-weight: 800;
+      }
+      .cart-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 10px;
+      }
+      .cart-item img {
+        width: 64px;
+        height: 64px;
+        border-radius: 12px;
+        object-fit: cover;
+        flex-shrink: 0;
+      }
+      .cart-item h6 {
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 2px;
+      }
+      .cart-item .variation {
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      .cart-item .price {
+        font-weight: 700;
+        color: var(--brand);
+        font-size: 0.9rem;
+      }
+      .summary-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 14px;
+      }
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 0.92rem;
+      }
+      .summary-row.total {
+        font-weight: 800;
+        font-size: 1.1rem;
+        color: var(--text);
+        border-top: 1.5px dashed var(--border);
+        padding-top: 12px;
+        margin-top: 6px;
+      }
+      .pay-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px;
+        border: 2px solid #eee;
+        border-radius: 14px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: var(--transition);
+      }
+      .pay-option:hover {
+        border-color: var(--brand-soft);
+      }
+      .pay-option.selected {
+        border-color: var(--brand);
+        background: var(--brand-soft);
+      }
+      .pay-option .pay-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--brand);
+        font-size: 1.3rem;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-sm);
+      }
+      .pay-option .pay-text {
+        flex-grow: 1;
+      }
+      .pay-option strong {
+        font-size: 0.92rem;
+        display: block;
+      }
+      .pay-option small {
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+      .pay-option input {
+        display: none;
+      }
+    /* ── Address gate modal ── */
+    .addr-modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1050;align-items:flex-end;justify-content:center}
+    .addr-modal-backdrop.show{display:flex;animation:fadeIn .2s ease}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .addr-modal{background:#fff;border-radius:28px 28px 0 0;padding:28px 22px 36px;width:100%;max-width:480px;animation:slideUp .28s ease}
+    @keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .addr-modal h5{font-weight:800;margin-bottom:4px}
+    .addr-modal p{color:#6b7280;font-size:13px;margin-bottom:18px}
+    .area-option{display:flex;align-items:center;gap:12px;padding:13px 15px;border:2px solid #e5e7eb;border-radius:14px;margin-bottom:8px;cursor:pointer;transition:all .18s}
+    .area-option:hover{border-color:#b94b4d;background:#fff8f8}
+    .area-option.selected{border-color:#b94b4d;background:#fff0f0}
+    .area-option .area-icon{width:40px;height:40px;border-radius:12px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .area-option.selected .area-icon{background:#b94b4d;color:#fff}
+    .area-option .area-text strong{display:block;font-size:14px;font-weight:700}
+    .area-option .area-text small{color:#6b7280;font-size:12px}
+    .fee-badge{background:#dcfce7;color:#15803d;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;flex-shrink:0}
+    .detail-section{display:none;margin-top:14px}
+    .detail-section.show{display:block;animation:fadeIn .2s ease}
+</style>
+  </head>
+  <body>
+    <div class="mobile-shell" style="padding-bottom: 100px">
+      <div class="sub-header">
+        <a href="cust-menu1.html" class="back"
+          ><i class="bi bi-chevron-left"></i
+        ></a>
+        <h5>Your Cart</h5>
+      </div>
+
+      <div class="page-pad">
+        <div id="cartBox"></div>
+
+        <div class="summary-card">
+          <label class="form-label fw-bold">Select Batch</label>
+          <select id="batchSelect" class="form-select mb-3"></select>
+
+          <h6 class="fw-bold mb-2">Payment Method</h6>
+          <label class="pay-option selected" id="payOpt1">
+            <input type="radio" name="pay" value="fpx" checked />
+            <span class="pay-icon"><i class="bi bi-bank"></i></span>
+            <span class="pay-text">
+              <strong>Online Banking / FPX</strong>
+              <small>Pay securely with your bank account</small>
+            </span>
+            <i class="bi bi-check-circle-fill text-brand fs-5"></i>
+          </label>
+
+          <div
+            class="alert mt-3 mb-0 small"
+            style="
+              background: #eefaf0;
+              color: #216b2b;
+              border: 0;
+              border-radius: 12px;
+            "
+          >
+            <i class="bi bi-shield-check me-1"></i> Order will be automatically sent to our kitchen once payment is confirmed.
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="summary-row">
+            <span class="text-muted">Subtotal</span
+            ><span id="subtotal">RM 0.00</span>
+          </div>
+          <div class="summary-row">
+            <span class="text-muted">Delivery Charge</span>
+            <span id="deliveryFeeDisplay" class="text-green">—</span>
+          </div>
+          <div class="summary-row" id="addressRow" style="font-size:12px;color:#6b7280;display:none">
+            <span><i class="bi bi-geo-alt-fill me-1" style="color:#b94b4d"></i><span id="cartAddressLabel"></span></span>
+            <a href="#" onclick="showAddressModal();return false" style="color:#b94b4d;font-weight:700;font-size:12px">Change</a>
+          </div>
+          <div class="summary-row total">
+            <span>Total</span><span id="total">RM 0.00</span>
+          </div>
+        </div>
+
+        <button
+          class="btn btn-green w-100 py-3"
+          id="placeOrderBtn"
+          onclick="placeOrder()"
+          style="font-size: 1.05rem"
+        >
+          <i class="bi bi-credit-card-2-front-fill me-2"></i>Confirm and Pay
+        </button>
+      </div>
+
+      <div class="bottom-nav">
+        <a href="cust-menu1.html"><i class="bi bi-house-door"></i>Menu</a>
+        <a href="cust-cart1.html" class="active"
+          ><i class="bi bi-cart-fill"></i>Cart</a
+        >
+        <a href="cust-track1.html"><i class="bi bi-card-list"></i>Track</a>
+        <a href="cust-profile1.html"><i class="bi bi-person"></i>Profile</a>
+      </div>
+    </div>
+
+    <!-- Address gate modal -->
+    <div class="addr-modal-backdrop" id="addressModalBackdrop">
+      <div class="addr-modal">
+        <h5><i class="bi bi-geo-alt-fill me-2" style="color:#b94b4d"></i>Set Delivery Address</h5>
+        <p>Select your delivery area and add your block / room details before checkout.</p>
+
+        <div class="area-option" data-area="Kolej Kediaman UTHM" data-fee="0.50" onclick="selectArea(this)">
+          <div class="area-icon">🏫</div>
+          <div class="area-text">
+            <strong>Kolej Kediaman UTHM</strong>
+            <small>Kolej kediaman dalam kampus UTHM Pagoh</small>
+          </div>
+          <span class="fee-badge">RM 0.50</span>
+        </div>
+        <div class="area-option" data-area="UIA / IIUM" data-fee="0.50" onclick="selectArea(this)">
+          <div class="area-icon">🎓</div>
+          <div class="area-text">
+            <strong>UIA / IIUM</strong>
+            <small>Universiti Islam Antarabangsa Malaysia, Pagoh</small>
+          </div>
+          <span class="fee-badge">RM 0.50</span>
+        </div>
+        <div class="area-option" data-area="Pagoh Jaya" data-fee="1.00" onclick="selectArea(this)">
+          <div class="area-icon">🏘️</div>
+          <div class="area-text">
+            <strong>Pagoh Jaya</strong>
+            <small>Kawasan perumahan Pagoh Jaya</small>
+          </div>
+          <span class="fee-badge">RM 1.00</span>
+        </div>
+
+        <div class="detail-section" id="addrDetailSection">
+          <label class="form-label fw-semibold mt-2" style="font-size:13px">Block / Room / Road Name <span style="color:#b94b4d">*</span></label>
+          <input type="text" id="addrDetailInput" class="form-control" placeholder="e.g. Blok A, Bilik 203 / No. 12, Jalan Mawar">
+          <div style="font-size:11px;color:#9ca3af;margin-top:5px">Add your block, room number, or street name so our rider can find you.</div>
+        </div>
+
+        <button class="btn btn-brand w-100 mt-4 py-2" id="saveAddressBtn" onclick="saveAddressAndPay()" style="border-radius:14px;font-weight:700" disabled>
+          <i class="bi bi-check-circle-fill me-2"></i>Save & Continue to Payment
+        </button>
+        <button class="btn btn-link w-100 mt-1" style="color:#6b7280;font-size:13px" onclick="closeAddressModal()">Cancel</button>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      /* ── Delivery fee table ── */
+      const DELIVERY_FEES = {
+        'Kolej Kediaman UTHM': 0.50,
+        'UIA / IIUM': 0.50,
+        'Pagoh Jaya': 1.00,
+      };
+
+      function getDeliveryFee(area) {
+        return DELIVERY_FEES[area] || 0;
+      }
+
+      /* ── Address modal ── */
+      let _selectedArea = '', _pendingPay = false;
+
+      window.showAddressModal = function() {
+        _selectedArea = '';
+        document.querySelectorAll('.area-option').forEach(el => el.classList.remove('selected'));
+        document.getElementById('addrDetailSection').classList.remove('show');
+        document.getElementById('addrDetailInput').value = '';
+        document.getElementById('saveAddressBtn').disabled = true;
+        document.getElementById('addressModalBackdrop').classList.add('show');
+      };
+
+      window.closeAddressModal = function() {
+        document.getElementById('addressModalBackdrop').classList.remove('show');
+        _pendingPay = false;
+      };
+
+      window.selectArea = function(el) {
+        document.querySelectorAll('.area-option').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        _selectedArea = el.dataset.area;
+        document.getElementById('addrDetailSection').classList.add('show');
+        document.getElementById('addrDetailInput').focus();
+        updateSaveBtn();
+      };
+
+      document.getElementById('addrDetailInput').addEventListener('input', updateSaveBtn);
+
+      function updateSaveBtn() {
+        const detail = document.getElementById('addrDetailInput').value.trim();
+        document.getElementById('saveAddressBtn').disabled = !(_selectedArea && detail);
+      }
+
+      window.saveAddressAndPay = async function() {
+        const detail = document.getElementById('addrDetailInput').value.trim();
+        if (!_selectedArea || !detail) return;
+        const btn = document.getElementById('saveAddressBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        try {
+          await AG.updateCustomerProfile({ addressArea: _selectedArea, addressDetail: detail });
+          closeAddressModal();
+          refreshDeliveryUI();
+          if (_pendingPay) await doPay();
+        } catch (err) {
+          AG.toast('Save failed', err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Save & Continue to Payment';
+        }
+      };
+
+      /* ── Delivery fee UI ── */
+      function refreshDeliveryUI() {
+        const profile = AG.session();
+        const area = profile && profile.addressArea;
+        const fee  = getDeliveryFee(area);
+        const feeEl = document.getElementById('deliveryFeeDisplay');
+        const addrRow = document.getElementById('addressRow');
+        const addrLabel = document.getElementById('cartAddressLabel');
+        if (area) {
+          feeEl.textContent = fee > 0 ? 'RM ' + fee.toFixed(2) : 'FREE';
+          feeEl.className = fee > 0 ? 'text-danger fw-bold' : 'text-green';
+          addrLabel.textContent = (profile.addressDetail ? profile.addressDetail + ', ' : '') + area;
+          addrRow.style.display = 'flex';
+        } else {
+          feeEl.textContent = '—';
+          feeEl.className = 'text-muted';
+          addrRow.style.display = 'none';
+        }
+        renderCartTotals();
+      }
+
+      function cartSubtotal() {
+        return AG.get("ayamGepukCart", []).reduce((a, i) => a + Number(i.price) * Number(i.quantity), 0);
+      }
+
+      function renderCartTotals() {
+        const sub = cartSubtotal();
+        const profile = AG.session();
+        const fee = getDeliveryFee(profile && profile.addressArea);
+        document.getElementById('subtotal').textContent = 'RM ' + sub.toFixed(2);
+        document.getElementById('total').textContent    = 'RM ' + (sub + fee).toFixed(2);
+      }
+
+      (async () => {
+        const s = await AG.requireRole(["customer"]);
+        if (!s) return;
+        function cart() {
+          return AG.get("ayamGepukCart", []);
+        }
+        function saveCart(v) {
+          AG.set("ayamGepukCart", v);
+          renderCart();
+        }
+        function cartPax() {
+          return cart().reduce((a, i) => a + Number(i.quantity || 1), 0);
+        }
+        function usedPax(bid) {
+          return AG.orders()
+            .filter((o) => o.batchId === bid && o.status !== "delivered")
+            .reduce(
+              (sum, o) =>
+                sum +
+                (o.items || []).reduce(
+                  (a, i) => a + Number(i.quantity || 1),
+                  0,
+                ),
+              0,
+            );
+        }
+        function isFull(b) {
+          return (
+            !!b.manualFull ||
+            (Number(b.limit || 0) > 0 && usedPax(b.id) >= Number(b.limit || 0))
+          );
+        }
+        window.renderBatch = function () {
+          const bs = AG.batches();
+          batchSelect.innerHTML =
+            bs
+              .map((b) => {
+                const used = usedPax(b.id);
+                const full = isFull(b);
+                return `<option value="${b.id}" ${full ? "disabled" : ""}>${b.name} (${b.start}-${b.end}) — ${used}/${b.limit} pax ${full ? "• FULL" : ""}</option>`;
+              })
+              .join("") || '<option value="">No batch available</option>';
+          renderEstimatedTime();
+        };
+        window.renderEstimatedTime = function () {
+          let box = document.getElementById("etaBox");
+          if (!box) {
+            box = document.createElement("div");
+            box.id = "etaBox";
+            box.className = "alert alert-light border small mb-3";
+            batchSelect.insertAdjacentElement("afterend", box);
+          }
+          const b = AG.batches().find((x) => x.id === batchSelect.value);
+          box.innerHTML = b
+            ? `<i class="bi bi-clock me-1"></i> Estimated delivery time: <strong>${b.start} - ${b.end}</strong>`
+            : "Select a batch to see estimated delivery time.";
+        };
+        batchSelect.addEventListener("change", renderEstimatedTime);
+        window.renderCart = function () {
+          const c = cart();
+          if (!c.length) {
+            cartBox.innerHTML = `<div class="empty-state"><i class="bi bi-cart-x"></i><h6>Your cart is empty</h6><p>Browse menu and add items.</p><a href="cust-menu1.html" class="btn btn-brand mt-3">Browse Menu</a></div>`;
+          } else {
+            cartBox.innerHTML = c
+              .map((i, idx) => {
+                return `<div class="cart-item"><img src="${AG.imageSrc(i.image)}"><div class="flex-grow-1"><h6>${i.name}</h6><div class="variation">${i.variationText || i.variation || ""}</div>${i.note ? `<div class="variation"><i class="bi bi-chat-left-text me-1"></i>Note: ${i.note}</div>` : ""}<div class="d-flex justify-content-between align-items-center mt-2"><div class="qty-stepper"><button onclick="qty(${idx},-1)"><i class="bi bi-dash"></i></button><span>${i.quantity}</span><button onclick="qty(${idx},1)"><i class="bi bi-plus"></i></button></div><span class="price">RM ${(Number(i.price) * Number(i.quantity)).toFixed(2)}</span></div></div><button class="btn btn-sm" onclick="removeItem(${idx})" style="color:var(--danger);background:none;border:0;"><i class="bi bi-trash3"></i></button></div>`;
+              })
+              .join("");
+          }
+          refreshDeliveryUI();
+          renderBatch();
+        };
+        window.qty = function (idx, n) {
+          const c = cart();
+          c[idx].quantity += n;
+          if (c[idx].quantity <= 0) c.splice(idx, 1);
+          saveCart(c);
+        };
+        window.removeItem = function (idx) {
+          const c = cart();
+          c.splice(idx, 1);
+          saveCart(c);
+        };
+        /* shared pay logic called after address is confirmed */
+        window.doPay = async function() {
+          const c = cart();
+          const b = AG.batches().find((x) => x.id === batchSelect.value);
+          if (!b) { AG.toast("Batch required", "Please select an available batch."); return; }
+          if (isFull(b)) { AG.toast("Batch full", "Please select another batch."); renderBatch(); return; }
+          if (usedPax(b.id) + cartPax() > Number(b.limit || 0)) {
+            AG.toast("Pax limit exceeded", "Your cart quantity exceeds remaining batch pax."); return;
+          }
+          const profile = AG.session();
+          const fee = getDeliveryFee(profile && profile.addressArea);
+          /* add delivery fee as a cart line item if > 0 */
+          const cartWithFee = fee > 0
+            ? [...c, { name: 'Delivery Fee (' + profile.addressArea + ')', price: fee, quantity: 1, variationText: '' }]
+            : c;
+          try {
+            placeOrderBtn.disabled = true;
+            placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>REDIRECTING TO STRIPE...';
+            const checkout = AG.createCheckoutSession(cartWithFee, "Stripe FPX Online Banking", batchSelect.value);
+            const res = await fetch("/api/create-checkout-session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ checkout, customer: profile }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to create Stripe checkout session.");
+            location.href = data.url;
+          } catch (err) {
+            AG.toast("Stripe checkout failed", err.message + ". Make sure you run the project using npm start.");
+            placeOrderBtn.disabled = false;
+            placeOrderBtn.innerHTML = '<i class="bi bi-credit-card-2-front-fill me-2"></i>Confirm and Pay';
+          }
+        };
+
+        window.placeOrder = async function () {
+          const c = cart();
+          if (!c.length) { AG.toast("Cart empty", "Please add menu first."); return; }
+
+          /* ── Address gate ── */
+          const profile = AG.session();
+          if (!profile || !profile.addressArea || !profile.addressDetail) {
+            _pendingPay = true;
+            showAddressModal();
+            return;
+          }
+
+          await doPay();
+        };
+        renderCart();
+        refreshDeliveryUI();
+        window.addEventListener("ag-data", renderBatch);
+      })();
+    </script>
+  </body>
+</html>

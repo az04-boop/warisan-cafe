@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Delivery Status — GepukGO</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .sub-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+      .sub-header .back {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #f6f4f4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        flex-shrink: 0;
+      }
+      .sub-header h5 {
+        margin: 0;
+        font-weight: 800;
+      }
+      .order-summary {
+        background: linear-gradient(
+          135deg,
+          var(--brand) 0%,
+          var(--brand-dark) 100%
+        );
+        color: #fff;
+        border-radius: 18px;
+        padding: 18px;
+        margin-bottom: 14px;
+        box-shadow: var(--shadow);
+      }
+      .order-summary .total {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+      .order-summary .info-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+        opacity: 0.95;
+      }
+      .info-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .info-card .icn {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: var(--brand-soft);
+        color: var(--brand);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.1rem;
+      }
+      .info-card small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        font-weight: 600;
+      }
+      .info-card strong {
+        font-size: 0.95rem;
+      }
+      .proof-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: var(--shadow-sm);
+      }
+      .action-btn {
+        padding: 14px;
+        border-radius: 14px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-shell" style="padding-bottom: 30px">
+      <div class="sub-header">
+        <a href="rider-dashboard1.html" class="back"
+          ><i class="bi bi-arrow-left"></i
+        ></a>
+        <h5 id="title">Job Details</h5>
+      </div>
+
+      <div class="page-pad">
+        <div id="orderBox"></div>
+
+        <div class="proof-card">
+          <h6 class="fw-bold mb-2">
+            <i class="bi bi-camera-fill text-brand me-2"></i>Proof of Delivery
+          </h6>
+          <p class="small-muted mb-2">
+            Capture a clear photo of the delivered food
+          </p>
+
+          <label class="upload-zone">
+            <i class="bi bi-camera-fill"></i>
+            <strong>Open Camera</strong>
+            <input
+              id="proof"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onchange="previewProof(event)"
+            />
+          </label>
+          <img id="preview" class="proof-img mt-3 d-none" />
+
+          <label class="form-label fw-semibold mt-3"
+            >Delivery Notes (optional)</label
+          >
+          <textarea
+            id="notes"
+            class="form-control"
+            rows="2"
+            placeholder="Ex: Food left at guard house"
+          ></textarea>
+
+          <div class="d-grid gap-2 mt-3" id="actionBtns"></div>
+        </div>
+
+        <!-- Success screen (hidden until delivered) -->
+        <div id="successBox" class="d-none text-center py-4">
+          <div style="font-size:4rem;line-height:1">✅</div>
+          <h5 class="fw-bold mt-3 text-success">Successfully Delivered!</h5>
+          <p class="text-muted small">Proof has been sent to the customer.<br>Great job, rider!</p>
+          <a href="rider-dashboard1.html" class="btn btn-brand mt-2 px-4" style="border-radius:14px">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (async () => {
+        await AG.requireRole(["rider"]);
+        const params = new URLSearchParams(location.search);
+        const oid = params.get("order");
+        let proofUrl = "";
+
+        function current() {
+          return AG.orders().find((o) => o.id === oid);
+        }
+
+        window.render = function () {
+          const o = current();
+          const orderBox = document.getElementById("orderBox");
+          const proofCard = document.querySelector(".proof-card");
+          const successBox = document.getElementById("successBox");
+          const actionBtns = document.getElementById("actionBtns");
+
+          if (!o) {
+            orderBox.innerHTML =
+              '<div class="empty-state"><i class="bi bi-question-circle"></i><h6>Order not found</h6></div>';
+            return;
+          }
+
+          document.getElementById("title").textContent = "Job " + o.id;
+          orderBox.innerHTML = `
+      <div class="order-summary">
+        <div class="total">RM ${Number(o.total).toFixed(2)}</div>
+        <div class="info-line"><i class="bi bi-receipt"></i>${o.id}</div>
+        <div class="info-line"><i class="bi bi-bag-fill"></i>${AG.orderDetails(o)}</div>
+        <div class="mt-2">${AG.statusBadge(o.status)}</div>
+      </div>
+      <div class="info-card">
+        <span class="icn"><i class="bi bi-person-fill"></i></span>
+        <div><small>Customer</small><strong>${o.customer}</strong></div>
+      </div>
+      <div class="info-card">
+        <span class="icn"><i class="bi bi-telephone-fill"></i></span>
+        <div><small>Phone</small><strong>${o.phone || "—"}</strong></div>
+      </div>
+      <div class="info-card">
+        <span class="icn"><i class="bi bi-geo-alt-fill"></i></span>
+        <div><small>Delivery Address</small><strong>${o.address}</strong></div>
+      </div>`;
+
+          /* ── Show success screen if already delivered ── */
+          if (o.status === "delivered") {
+            proofCard.classList.add("d-none");
+            successBox.classList.remove("d-none");
+            return;
+          }
+
+          proofCard.classList.remove("d-none");
+          successBox.classList.add("d-none");
+
+          /* ── Show only the next available action(s) ── */
+          const steps = AG.ORDER_STEPS;
+          const idx = steps.indexOf(o.status);
+
+          let btns = "";
+          if (idx < steps.indexOf("picked_up")) {
+            btns += `<button class="btn btn-brand action-btn" onclick="pickup()">
+              <i class="bi bi-box-arrow-up me-1"></i>PICKED UP BY RIDER
+            </button>`;
+          }
+          if (idx < steps.indexOf("out_for_delivery")) {
+            btns += `<button class="btn btn-brand action-btn" onclick="outDelivery()" ${idx < steps.indexOf("picked_up") ? 'style="opacity:.45" disabled title="Pick up first"' : ""}>
+              <i class="bi bi-bicycle me-1"></i>OUT FOR DELIVERY
+            </button>`;
+          }
+          btns += `<button class="btn btn-green action-btn" onclick="delivered()" ${idx < steps.indexOf("out_for_delivery") ? 'style="opacity:.45" disabled title="Must be out for delivery first"' : ""}>
+            <i class="bi bi-check-circle-fill me-1"></i>DELIVERED + SEND PROOF
+          </button>`;
+          actionBtns.innerHTML = btns;
+        };
+
+        window.previewProof = async function (e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          try {
+            proofUrl = await AG.uploadProof(file, oid);
+            const img = document.getElementById("preview");
+            img.src = proofUrl;
+            img.classList.remove("d-none");
+            AG.toast(
+              "Proof captured"
+            );
+          } catch (err) {
+            AG.toast("Proof failed", err.message);
+          }
+        };
+
+        window.pickup = async function () {
+          await AG.updateOrderStatus(oid, "picked_up");
+          render();
+          AG.toast("Updated", "Customer notified: picked up.");
+        };
+        window.outDelivery = async function () {
+          await AG.updateOrderStatus(oid, "out_for_delivery");
+          render();
+          AG.toast("Updated", "Customer notified: out for delivery.");
+        };
+        window.delivered = async function () {
+          if (!proofUrl) {
+            AG.toast("Proof required", "Please capture proof photo with camera first.");
+            return;
+          }
+          const btn = document.querySelector("#actionBtns .btn-green");
+          if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...'; }
+          try {
+            await AG.updateOrderStatus(oid, "delivered", document.getElementById("notes").value, proofUrl);
+            render();
+          } catch (err) {
+            AG.toast("Failed", err.message);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>DELIVERED + SEND PROOF'; }
+          }
+        };
+
+        render();
+        window.addEventListener("ag-data", render);
+      })();
+    </script>
+  </body>
+</html>

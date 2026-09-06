@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Digital Receipt — Ayam Gepuk Pagoh</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://www.gstatic.com" />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .sub-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+      }
+      .sub-header .back {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #f6f4f4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+      }
+      .sub-header h5 {
+        margin: 0;
+        font-weight: 800;
+      }
+      .receipt-card {
+        background: #fff;
+        border-radius: 22px;
+        box-shadow: var(--shadow);
+        padding: 24px 22px;
+        margin-top: 6px;
+        position: relative;
+        overflow: hidden;
+      }
+      .receipt-card:before,
+      .receipt-card:after {
+        content: "";
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        background: var(--bg);
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .receipt-card:before {
+        left: -15px;
+      }
+      .receipt-card:after {
+        right: -15px;
+      }
+      .stamp {
+        display: inline-block;
+        padding: 6px 14px;
+        background: var(--green-soft);
+        color: var(--green-dark);
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.8rem;
+      }
+      .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 0.92rem;
+      }
+      .receipt-row.total {
+        font-weight: 800;
+        font-size: 1.15rem;
+        color: var(--brand);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-shell" style="padding-bottom: 30px">
+      <div class="sub-header">
+        <a href="cust-track1.html" class="back"
+          ><i class="bi bi-chevron-left"></i
+        ></a>
+        <h5>Digital Receipt</h5>
+      </div>
+
+      <div class="page-pad">
+        <div class="receipt-card printable">
+          <div class="text-center">
+            <img
+              src="images/logo.png"
+              width="72"
+              alt="Logo"
+              style="
+                background: #fff;
+                border-radius: 14px;
+                padding: 6px;
+                box-shadow: var(--shadow-sm);
+              "
+            />
+            <h5 class="fw-bold mt-2 mb-1">Ayam Gepuk Pagoh</h5>
+            <small class="text-muted" id="date"></small>
+            <div class="mt-2">
+              <span class="stamp"
+                ><i class="bi bi-check-circle-fill me-1"></i>Order
+                Confirmed</span
+              >
+            </div>
+          </div>
+
+          <div class="divider-dashed"></div>
+
+          <div class="receipt-row">
+            <span class="text-muted">Order ID</span
+            ><strong id="receiptOrderId">—</strong>
+          </div>
+          <div class="receipt-row">
+            <span class="text-muted">Customer</span
+            ><strong id="receiptCustomer">—</strong>
+          </div>
+          <div class="receipt-row">
+            <span class="text-muted">Payment</span
+            ><strong id="receiptPayment">—</strong>
+          </div>
+
+          <div class="divider-dashed"></div>
+
+          <h6 class="fw-bold mb-2">Order Items</h6>
+          <div id="receiptItems"></div>
+
+          <div class="divider-dashed"></div>
+
+          <div class="receipt-row">
+            <span class="text-muted">Subtotal</span
+            ><span id="receiptSubtotal">RM 0.00</span>
+          </div>
+          <div class="receipt-row">
+            <span class="text-muted">Delivery</span
+            ><span class="text-green">FREE</span>
+          </div>
+          <div class="receipt-row total">
+            <span>TOTAL</span><span id="receiptTotal">RM 0.00</span>
+          </div>
+
+          <div class="text-center mt-4">
+            <p class="small text-muted mb-2">Thank you for your order! 💛</p>
+            <small
+              class="text-muted"
+              style="font-family: monospace; letter-spacing: 0.5px"
+              >— ayamgepukpagoh.my —</small
+            >
+          </div>
+        </div>
+
+        <div class="d-grid gap-2 mt-3 no-print">
+          <button class="btn btn-outline-brand" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print Receipt
+          </button>
+          <a href="cust-menu1.html" class="btn btn-brand"
+            ><i class="bi bi-house-door me-1"></i> Back to Menu</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (async () => {
+        await AG.init();
+        document.getElementById("date").textContent =
+          new Date().toLocaleString();
+
+        const lastId = AG.get("lastOrderId", "");
+        const order = AG.orders().find((o) => o.id === lastId);
+        const items = order?.items || AG.get("ayamGepukReceipt", []);
+
+        document.getElementById("receiptOrderId").textContent =
+          order?.id || lastId || "—";
+        document.getElementById("receiptCustomer").textContent =
+          order?.customer || AG.session()?.name || "Customer";
+        document.getElementById("receiptPayment").textContent =
+          order?.payment || "Online Banking";
+
+        let total = 0;
+        document.getElementById("receiptItems").innerHTML =
+          items
+            .map((i) => {
+              const lineTotal = i.price * i.quantity;
+              total += lineTotal;
+              return `<div class="receipt-row">
+      <span>${i.quantity}× ${i.name}<br><small class="text-muted">${i.variationText || i.variation || ""}</small></span>
+      <span>RM ${lineTotal.toFixed(2)}</span>
+    </div>`;
+            })
+            .join("") ||
+          '<p class="text-center text-muted small">No receipt data.</p>';
+
+        document.getElementById("receiptSubtotal").textContent =
+          "RM " + total.toFixed(2);
+        document.getElementById("receiptTotal").textContent =
+          "RM " + total.toFixed(2);
+      })();
+    </script>
+  </body>
+</html>

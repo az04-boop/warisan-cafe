@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Staff Login — GepukGO</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://www.gstatic.com" />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .input-group-modern {
+        position: relative;
+        margin-bottom: 14px;
+      }
+      .input-group-modern i.lead-icon {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+        font-size: 1.05rem;
+        pointer-events: none;
+      }
+      .input-group-modern input {
+        padding-left: 44px !important;
+      }
+      .demo-box {
+        background: #fff8ec;
+        border: 1px dashed #f5cf90;
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        font-size: 0.82rem;
+        color: #8a6500;
+      }
+      .demo-box code {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 1px 6px;
+        border-radius: 6px;
+        color: var(--brand-dark);
+      }
+    </style>
+  </head>
+  <body class="login-bg">
+    <div class="login-card">
+      <div class="logo-float"><img src="images/logo.png" alt="Logo" /></div>
+
+      <h5 class="fw-bold text-center mb-1">GepukGo Staff Portal</h5>
+      <p class="text-center text-muted small mb-4">Admin & Rider</p>
+
+      <form id="staffForm">
+        <div class="input-group-modern">
+          <i class="bi bi-person-badge lead-icon"></i>
+          <input
+            id="staffId"
+            class="form-control"
+            placeholder="Username"
+            required
+          />
+        </div>
+        <div class="input-group-modern">
+          <i class="bi bi-lock lead-icon"></i>
+          <input
+            id="staffPassword"
+            type="password"
+            class="form-control"
+            placeholder="Password"
+            required
+          />
+        </div>
+        <button class="btn btn-brand w-100 py-2 mb-3">
+          <i class="bi bi-box-arrow-in-right me-1"></i> LOG IN
+        </button>
+      </form>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      document
+        .getElementById("staffForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const role = await AG.loginStaff(
+              document.getElementById("staffId").value,
+              document.getElementById("staffPassword").value,
+            );
+            location.href =
+              role === "admin"
+                ? "admin-dashboard1.html"
+                : "rider-dashboard1.html";
+          } catch (err) {
+            AG.toast("Login failed", err.message);
+          }
+        });
+      AG.init();
+    </script>
+  </body>
+</html>

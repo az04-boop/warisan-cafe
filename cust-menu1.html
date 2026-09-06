@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Menu — Ayam Gepuk Pagoh</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .search-bar {
+        position: relative;
+        margin-bottom: 14px;
+      }
+      .search-bar input {
+        padding-left: 42px;
+      }
+      .search-bar i {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+      }
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .section-title h6 {
+        font-weight: 800;
+        margin: 0;
+      }
+      .cart-pill {
+        background: var(--green-soft);
+        color: var(--green-dark);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .menu-card {
+        display: flex;
+        gap: 14px;
+        background: #fff;
+        border-radius: 18px;
+        padding: 12px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 14px;
+        transition: var(--transition);
+        cursor: pointer;
+      }
+      .menu-card:hover {
+        box-shadow: var(--shadow);
+        transform: translateY(-1px);
+      }
+      .menu-card .thumb {
+        width: 92px;
+        height: 92px;
+        flex-shrink: 0;
+        border-radius: 14px;
+        object-fit: cover;
+        background: #f1f1f1;
+      }
+      .menu-card h6 {
+        font-weight: 800;
+        margin-bottom: 4px;
+        font-size: 1rem;
+      }
+      .menu-card .desc {
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-bottom: 8px;
+        line-height: 1.35;
+      }
+      .menu-card .price {
+        font-weight: 800;
+        color: var(--brand);
+        font-size: 1.05rem;
+      }
+      .floating-cart {
+        position: fixed;
+        bottom: 78px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 32px);
+        max-width: 398px;
+        background: var(--green);
+        color: #fff;
+        border-radius: 14px;
+        padding: 12px 16px;
+        box-shadow: 0 10px 28px rgba(46, 204, 113, 0.4);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 24;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .modal-food-img {
+        width: 100%;
+        height: 190px;
+        object-fit: cover;
+        border-radius: 18px;
+      }
+      .var-group-title {
+        font-weight: 800;
+        margin-top: 16px;
+        margin-bottom: 8px;
+      }
+      .var-option {
+        border: 1px solid #eee;
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+      }
+      .var-option.active {
+        border-color: var(--brand);
+        background: var(--brand-soft);
+      }
+      .var-group-subtitle {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: -4px;
+        margin-bottom: 8px;
+      }
+      .var-option.addon.active {
+        border-color: #0dcaf0;
+        background: rgba(13, 202, 240, 0.1);
+      }
+      .qty-stepper.big button {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 0;
+        background: #f2f2f2;
+      }
+      .qty-stepper.big span {
+        font-size: 1.1rem;
+        font-weight: 800;
+        padding: 0 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-shell" style="padding-bottom: 140px">
+      <div id="header"></div>
+      <div class="page-pad">
+        <div class="search-bar">
+          <i class="bi bi-search"></i
+          ><input
+            id="searchInput"
+            type="search"
+            class="form-control"
+            placeholder="Search menu..."
+          />
+        </div>
+        <div class="section-title">
+          <h6>Menu Available</h6>
+          <span class="cart-pill"
+            ><i class="bi bi-bag-fill"></i
+            ><span id="cartCount">0</span> items</span
+          >
+        </div>
+        <div id="menuList"></div>
+      </div>
+      <a
+        href="cust-cart1.html"
+        id="floatingCart"
+        class="floating-cart"
+        style="display: none; color: #fff"
+        ><span
+          ><i class="bi bi-cart-fill me-2"></i
+          ><strong id="floatCount">0</strong> items</span
+        ><span
+          ><strong id="floatTotal">RM 0.00</strong
+          ><i class="bi bi-chevron-right ms-1"></i></span
+      ></a>
+      <div class="bottom-nav">
+        <a href="cust-menu1.html" class="active"
+          ><i class="bi bi-house-door-fill"></i>Menu</a
+        ><a href="cust-cart1.html"><i class="bi bi-cart"></i>Cart</a
+        ><a href="cust-track1.html"><i class="bi bi-card-list"></i>Track</a
+        ><a href="cust-profile1.html"><i class="bi bi-person"></i>Profile</a>
+      </div>
+    </div>
+    <div class="modal fade" id="menuModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold" id="modalTitle">Menu</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <img id="modalImg" class="modal-food-img mb-3" />
+            <p id="modalDesc" class="text-muted"></p>
+            <div class="d-flex justify-content-between align-items-center">
+              <strong>Base Price</strong
+              ><strong class="text-brand" id="modalBasePrice">RM 0.00</strong>
+            </div>
+            <div id="modalVariationBox"></div>
+            <label class="form-label fw-bold mt-3"
+              >Message / note to admin</label
+            ><textarea
+              id="modalNote"
+              class="form-control"
+              rows="2"
+              placeholder="Example: sambal asing, no cucumber, extra cutlery..."
+            ></textarea>
+            <div class="small-muted mt-1">
+              This note will appear in admin orders.
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div class="qty-stepper big">
+                <button onclick="changeModalQty(-1)">-</button
+                ><span id="modalQty">1</span
+                ><button onclick="changeModalQty(1)">+</button>
+              </div>
+              <strong class="fs-5 text-brand" id="modalTotal">RM 0.00</strong>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-brand w-100 py-3" onclick="addModalToCart()">
+              <i class="bi bi-cart-plus me-1"></i>Add to Cart
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let currentMenu = null;
+      let modalQty = 1;
+      let modalSelections = {};
+      let menuModalInstance = null;
+      (async () => {
+        const s = await AG.requireRole(["customer"]);
+        if (!s) return;
+        document.getElementById("header").innerHTML = AG.header(
+          "Ayam Gepuk Pagoh",
+          "customer",
+        );
+        menuModalInstance = new bootstrap.Modal(
+          document.getElementById("menuModal"),
+        );
+        document
+          .getElementById("searchInput")
+          .addEventListener("input", renderMenu);
+        renderMenu();
+        renderCount();
+        AG.checkNotifications();
+        window.addEventListener("ag-data", () => {
+          renderMenu();
+          renderCount();
+        });
+      })();
+      function cart() {
+        return AG.get("ayamGepukCart", []);
+      }
+      function saveCart(v) {
+        AG.set("ayamGepukCart", v);
+        renderCount();
+      }
+      function renderCount() {
+        const items = cart();
+        const total = items.reduce((a, i) => a + Number(i.quantity || 1), 0);
+        const sum = items.reduce(
+          (a, i) => a + Number(i.price || 0) * Number(i.quantity || 1),
+          0,
+        );
+        cartCount.textContent = total;
+        if (total > 0) {
+          floatingCart.style.display = "flex";
+          floatCount.textContent = total;
+          floatTotal.textContent = "RM " + sum.toFixed(2);
+        } else floatingCart.style.display = "none";
+      }
+      function renderMenu() {
+        const q = (searchInput.value || "").toLowerCase();
+        let items = AG.menu().filter((m) => m.active !== false);
+        if (q)
+          items = items.filter(
+            (m) =>
+              (m.name || "").toLowerCase().includes(q) ||
+              (m.desc || "").toLowerCase().includes(q),
+          );
+        menuList.innerHTML =
+          items
+            .map(
+              (m) =>
+                `<div class="menu-card" onclick="openMenuModal('${m.id}')"><img src="${AG.imageSrc(m.image)}" class="thumb"><div class="flex-grow-1"><h6>${m.name}</h6><p class="desc">${m.desc || ""}</p><div class="d-flex justify-content-between align-items-center"><span class="price">RM ${Number(m.price || 0).toFixed(2)}</span><span class="small-muted">Add to cart<i class="bi bi-chevron-right"></i></span></div></div></div>`,
+            )
+            .join("") ||
+          '<div class="empty-state"><i class="bi bi-emoji-frown"></i><h6>No menu found</h6></div>';
+      }
+      function openMenuModal(id) {
+        currentMenu = AG.menu().find((m) => m.id === id);
+        if (!currentMenu) return;
+        modalQty = 1;
+        modalSelections = {};
+        modalTitle.textContent = currentMenu.name;
+        modalImg.src = AG.imageSrc(currentMenu.image);
+        modalDesc.textContent = currentMenu.desc || "";
+        modalBasePrice.textContent =
+          "RM " + Number(currentMenu.price || 0).toFixed(2);
+        if (document.getElementById("modalNote")) modalNote.value = "";
+        modalVariationBox.innerHTML = (currentMenu.variationGroups || [])
+          .map((g) => {
+            const opts = g.options || [];
+            const type =
+              g.type === "addon" || g.required === false ? "addon" : "single";
+            if (type === "single" && opts[0])
+              modalSelections[g.name] = { ...opts[0], type: "single" };
+            if (type === "addon") modalSelections[g.name] = [];
+            const subtitle =
+              type === "addon"
+                ? "Optional"
+                : "Required — choose one only";
+            return `<div><div class="var-group-title">${g.name}</div><div class="var-group-subtitle">${subtitle}</div>${opts.map((o, idx) => `<div class="var-option ${type === "addon" ? "addon" : ""} ${type === "single" && idx === 0 ? "active" : ""}" data-type="${type}" data-group="${g.name}" data-name="${o.name}" data-price="${Number(o.price || 0)}" onclick="selectVariation(this)"><span>${o.name}</span><strong>${Number(o.price) > 0 ? "+RM " + Number(o.price).toFixed(2) : ""}</strong></div>`).join("")}</div>`;
+          })
+          .join("");
+        updateModalTotal();
+        menuModalInstance.show();
+      }
+      function selectVariation(el) {
+        const group = el.dataset.group;
+        const type = el.dataset.type === "addon" ? "addon" : "single";
+        const option = {
+          name: el.dataset.name,
+          price: Number(el.dataset.price || 0),
+          type,
+        };
+
+        if (type === "addon") {
+          el.classList.toggle("active");
+          const selectedAddons = [
+            ...document.querySelectorAll(
+              `.var-option.addon[data-group="${CSS.escape(group)}"].active`,
+            ),
+          ].map((x) => ({
+            name: x.dataset.name,
+            price: Number(x.dataset.price || 0),
+            type: "addon",
+          }));
+          modalSelections[group] = selectedAddons;
+        } else {
+          document
+            .querySelectorAll(`.var-option[data-group="${CSS.escape(group)}"]`)
+            .forEach((x) => x.classList.remove("active"));
+          el.classList.add("active");
+          modalSelections[group] = option;
+        }
+        updateModalTotal();
+      }
+      function changeModalQty(n) {
+        modalQty = Math.max(1, modalQty + n);
+        updateModalTotal();
+      }
+      function flattenModalSelections() {
+        return Object.entries(modalSelections).flatMap(([group, value]) => {
+          if (Array.isArray(value)) {
+            return value.map((o) => ({
+              group,
+              name: o.name,
+              price: Number(o.price || 0),
+              type: "addon",
+            }));
+          }
+          if (!value) return [];
+          return [
+            {
+              group,
+              name: value.name,
+              price: Number(value.price || 0),
+              type: value.type || "single",
+            },
+          ];
+        });
+      }
+      function modalUnitPrice() {
+        return (
+          Number(currentMenu?.price || 0) +
+          flattenModalSelections().reduce((a, o) => a + Number(o.price || 0), 0)
+        );
+      }
+      function updateModalTotal() {
+        modalQtyEl = document.getElementById("modalQty");
+        modalQtyEl.textContent = modalQty;
+        modalTotal.textContent =
+          "RM " + (modalUnitPrice() * modalQty).toFixed(2);
+      }
+      function addModalToCart() {
+        if (!currentMenu) return;
+        const selectedOptions = flattenModalSelections();
+        const labels = selectedOptions.map((o) => `${o.group}: ${o.name}`);
+        const variationText = labels.join(", ");
+        const key =
+          currentMenu.id +
+          "-" +
+          variationText +
+          "-" +
+          (document.getElementById("modalNote")?.value || "").trim();
+        const c = cart();
+        const found = c.find((i) => i.key === key);
+        if (found) found.quantity += modalQty;
+        else
+          c.push({
+            key,
+            id: currentMenu.id,
+            name: currentMenu.name,
+            selectedVariations: Object.fromEntries(
+              selectedOptions
+                .filter((o) => o.type !== "addon")
+                .map((o) => [o.group, o.name]),
+            ),
+            selectedOptions,
+            addOns: selectedOptions.filter((o) => o.type === "addon"),
+            variationText,
+            price: modalUnitPrice(),
+            image: currentMenu.image,
+            quantity: modalQty,
+            note: (document.getElementById("modalNote")?.value || "").trim(),
+          });
+        saveCart(c);
+        AG.toast("Added to cart", currentMenu.name);
+        menuModalInstance.hide();
+      }
+    </script>
+  </body>
+</html>

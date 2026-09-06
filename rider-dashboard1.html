@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+
+    <title>Rider Dashboard — GepukGO</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .rider-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 18px;
+      }
+      .rider-stat {
+        background: #fff;
+        border-radius: 14px;
+        padding: 12px;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+      }
+      .rider-stat .num {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: var(--brand);
+      }
+      .rider-stat .lbl {
+        font-size: 0.68rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        font-weight: 600;
+      }
+      .job-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 12px;
+        border-left: 4px solid var(--brand);
+        transition: var(--transition);
+      }
+      .job-card:hover {
+        box-shadow: var(--shadow);
+        transform: translateY(-1px);
+      }
+      .job-card.ready {
+        border-left-color: var(--green);
+      }
+      .job-card.picked_up {
+        border-left-color: var(--info);
+      }
+      .job-card.out_for_delivery {
+        border-left-color: var(--warning);
+      }
+      .job-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.88rem;
+        margin-bottom: 6px;
+      }
+      .job-row i {
+        width: 22px;
+        color: var(--brand);
+        flex-shrink: 0;
+      }
+      .filter-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      .filter-tab {
+        padding: 8px 16px;
+        border-radius: 999px;
+        background: #fff;
+        color: var(--text);
+        font-weight: 600;
+        font-size: 0.82rem;
+        cursor: pointer;
+        white-space: nowrap;
+        border: 1.5px solid var(--border);
+        transition: var(--transition);
+      }
+      .filter-tab.active {
+        background: var(--brand);
+        color: #fff;
+        border-color: var(--brand);
+      }
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .section-title h6 {
+        margin: 0;
+        font-weight: 800;
+        color: var(--muted);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-shell" style="padding-bottom: 30px">
+      <div id="header"></div>
+
+      <div class="page-pad">
+        <div class="rider-stats">
+          <div class="rider-stat">
+            <div class="num" id="statReady">0</div>
+            <div class="lbl">Ready</div>
+          </div>
+          <div class="rider-stat">
+            <div class="num" id="statActive">0</div>
+            <div class="lbl">Active</div>
+          </div>
+          <div class="rider-stat">
+            <div class="num" id="statDoneToday">0</div>
+            <div class="lbl">Done Today</div>
+          </div>
+        </div>
+
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-filter="all">All Jobs</button>
+          <button class="filter-tab" data-filter="ready">Ready</button>
+          <button class="filter-tab" data-filter="picked_up">Picked Up</button>
+          <button class="filter-tab" data-filter="out_for_delivery">
+            Delivering
+          </button>
+        </div>
+
+        <div class="section-title">
+          <h6>Available Jobs</h6>
+          <span class="small-muted"><span id="jobCount">0</span> jobs</span>
+        </div>
+
+        <div id="jobs"></div>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      let activeFilter = "all";
+
+      (async () => {
+        const s = await AG.requireRole(["rider"]);
+        if (!s) return;
+        document.getElementById("header").innerHTML = AG.header(
+          "Rider Dashboard",
+          "rider",
+        );
+
+        document.querySelectorAll(".filter-tab").forEach((tab) =>
+          tab.addEventListener("click", () => {
+            document
+              .querySelectorAll(".filter-tab")
+              .forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+            activeFilter = tab.dataset.filter;
+            renderJobs();
+          }),
+        );
+
+
+        window.renderJobs = function () {
+          const all = AG.orders();
+          const active = all.filter((o) =>
+            ["ready", "picked_up", "out_for_delivery"].includes(o.status),
+          );
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          document.getElementById("statReady").textContent = all.filter(
+            (o) => o.status === "ready",
+          ).length;
+          document.getElementById("statActive").textContent = all.filter((o) =>
+            ["picked_up", "out_for_delivery"].includes(o.status),
+          ).length;
+          document.getElementById("statDoneToday").textContent = all.filter(
+            (o) =>
+              o.status === "delivered" &&
+              new Date(o.updatedAt || o.createdAt) >= today,
+          ).length;
+
+          let list = active;
+          if (activeFilter !== "all")
+            list = list.filter((o) => o.status === activeFilter);
+          document.getElementById("jobCount").textContent = list.length;
+
+          const wrap = document.getElementById("jobs");
+          if (!list.length) {
+            wrap.innerHTML = `<div class="empty-state"><i class="bi bi-bicycle"></i><h6>No jobs available</h6><p>You're all caught up — new orders will appear here.</p></div>`;
+            return;
+          }
+          wrap.innerHTML = list
+            .map(
+              (o) => `
+      <div class="job-card ${o.status}">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <strong>Order ${o.id}</strong>
+          ${AG.statusBadge(o.status)}
+        </div>
+        <div class="job-row"><i class="bi bi-shop"></i> Ayam Gepuk Pagoh</div>
+        <div class="job-row"><i class="bi bi-geo-alt-fill"></i> <strong>${o.address}</strong></div>
+        <div class="job-row"><i class="bi bi-bag-fill"></i> ${AG.orderDetails(o)}</div>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <strong class="text-green" style="font-size:1.05rem;">RM ${Number(o.total).toFixed(2)}</strong>
+          <div class="d-flex gap-2 align-items-center">
+            <a href="rider-chat1.html?order=${o.id}" class="btn btn-sm btn-outline-secondary position-relative" style="border-radius:10px;padding:6px 10px;">
+              <i class="bi bi-chat-dots-fill"></i>
+              ${AG.unreadChatCount(o.id, "rider") ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem">${AG.unreadChatCount(o.id, "rider") > 9 ? "9+" : AG.unreadChatCount(o.id, "rider")}</span>` : ""}
+            </a>
+            <a href="rider-status1.html?order=${o.id}" class="btn btn-sm ${o.status === "ready" ? "btn-green" : "btn-brand"}">
+              ${o.status === "ready" ? '<i class="bi bi-check-circle me-1"></i>ACCEPT JOB' : '<i class="bi bi-arrow-right-circle me-1"></i>UPDATE'}
+            </a>
+          </div>
+        </div>
+      </div>`,
+            )
+            .join("");
+        };
+        renderJobs();
+        setInterval(renderJobs, 4000);
+        window.addEventListener("ag-data", renderJobs);
+      })();
+    </script>
+  </body>
+</html>

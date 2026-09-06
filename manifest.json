@@ -1,0 +1,36 @@
+{
+  "name": "GepukGO — Ayam Gepuk Pagoh",
+  "short_name": "GepukGO",
+  "description": "Order delicious Ayam Gepuk Pagoh delivered straight to you.",
+  "start_url": "/index1.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#b94b4d",
+  "background_color": "#b94b4d",
+  "lang": "ms",
+  "icons": [
+    {
+      "src": "/images/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "shopping"],
+  "shortcuts": [
+    {
+      "name": "Order Now",
+      "short_name": "Order",
+      "description": "Go straight to the menu",
+      "url": "/cust-menu1.html",
+      "icons": [{ "src": "/images/logo.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "gepukgo-stripe-fpx",
+  "version": "1.0.0",
+  "description": "Ayam Gepuk Pagoh FYP with Firebase and Stripe FPX Checkout",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.3",
+    "stripe": "^17.5.0"
+  }
+}

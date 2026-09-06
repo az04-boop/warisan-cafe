@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GepukGO" />
+    <link rel="apple-touch-icon" href="/images/logo.png" />
+    <meta name="theme-color" content="#b94b4d" />
+
+    <title>Chat — GepukGO Rider</title>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      body { background: #f5f6f8; }
+
+      /* ── Top bar ── */
+      .chat-topbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 50;
+        background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        box-shadow: var(--shadow);
+      }
+      .chat-topbar .back-btn {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.2);
+        border: 0;
+        color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+      .chat-topbar .back-btn:hover { background: rgba(255,255,255,.35); }
+      .chat-topbar .info h6 { margin: 0; font-weight: 800; font-size: .97rem; }
+      .chat-topbar .info small { opacity: .82; font-size: .76rem; }
+      .online-dot {
+        width: 9px; height: 9px; border-radius: 50%;
+        background: #4ade80;
+        box-shadow: 0 0 0 2px rgba(74,222,128,.3);
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+
+      /* ── Delivery info card ── */
+      .delivery-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        margin: 80px 14px 14px;
+      }
+      .delivery-card .card-title {
+        font-weight: 800;
+        font-size: .82rem;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        color: var(--brand);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .info-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: .88rem;
+      }
+      .info-row:last-of-type { border-bottom: 0; }
+      .info-row .ic {
+        width: 30px; height: 30px;
+        border-radius: 10px;
+        background: var(--brand-soft);
+        color: var(--brand);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .95rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .info-row .ic.green { background: var(--green-soft); color: var(--green-dark); }
+      .info-row .val { line-height: 1.4; }
+      .info-row .val small { color: var(--muted); font-size: .75rem; display: block; }
+      .info-row .val strong { font-weight: 700; }
+
+      /* ── Chat area ── */
+      .chat-scroll {
+        padding: 0 14px 110px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .day-divider {
+        text-align: center;
+        color: var(--muted);
+        font-size: .72rem;
+        font-weight: 600;
+        margin: 6px 0 2px;
+      }
+      .bubble-wrap {
+        display: flex;
+        flex-direction: column;
+      }
+      .bubble-wrap.mine { align-items: flex-end; }
+      .bubble-wrap.theirs { align-items: flex-start; }
+      .bubble {
+        max-width: 78%;
+        padding: 10px 14px;
+        border-radius: 18px;
+        font-size: .9rem;
+        line-height: 1.45;
+        word-break: break-word;
+      }
+      .bubble-wrap.mine .bubble {
+        background: var(--brand);
+        color: #fff;
+        border-bottom-right-radius: 5px;
+      }
+      .bubble-wrap.theirs .bubble {
+        background: #fff;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-bottom-left-radius: 5px;
+        box-shadow: var(--shadow-sm);
+      }
+      .bubble-meta {
+        font-size: .68rem;
+        color: var(--muted);
+        margin-top: 3px;
+        padding: 0 4px;
+      }
+      .empty-chat {
+        text-align: center;
+        padding: 32px 20px;
+        color: var(--muted);
+      }
+      .empty-chat i { font-size: 2.8rem; opacity: .35; display: block; margin-bottom: 10px; }
+      .empty-chat p { font-size: .85rem; margin: 0; }
+
+      /* ── Input bar ── */
+      .chat-input-bar {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #fff;
+        border-top: 1px solid var(--border);
+        padding: 10px 14px 18px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        z-index: 50;
+      }
+      .chat-input-bar textarea {
+        flex: 1;
+        border: 1.5px solid var(--border);
+        border-radius: 22px;
+        padding: 10px 16px;
+        font-size: .9rem;
+        resize: none;
+        outline: none;
+        max-height: 100px;
+        overflow-y: auto;
+        background: #f8f8f8;
+        transition: border-color .2s;
+      }
+      .chat-input-bar textarea:focus { border-color: var(--brand); background: #fff; }
+      .send-btn {
+        width: 44px; height: 44px;
+        border-radius: 50%;
+        background: var(--brand);
+        color: #fff;
+        border: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        cursor: pointer;
+        transition: background .2s, transform .15s;
+      }
+      .send-btn:hover { background: var(--brand-dark); }
+      .send-btn:active { transform: scale(.92); }
+      .send-btn:disabled { background: #ccc; cursor: not-allowed; }
+    </style>
+  </head>
+  <body>
+
+    <!-- Top bar -->
+    <div class="chat-topbar">
+      <button class="back-btn" onclick="history.back()"><i class="bi bi-chevron-left"></i></button>
+      <div class="info">
+        <h6 id="topbarName">Customer</h6>
+        <small id="topbarOrder">Loading...</small>
+      </div>
+      <div class="online-dot" title="Live chat"></div>
+    </div>
+
+    <!-- Delivery info card -->
+    <div class="delivery-card" id="deliveryCard">
+      <div class="card-title"><i class="bi bi-box-seam-fill"></i> Delivery Info</div>
+      <div class="text-center text-muted small py-2">Loading order...</div>
+    </div>
+
+    <!-- Chat messages -->
+    <div class="chat-scroll" id="chatScroll"></div>
+
+    <!-- Input bar -->
+    <div class="chat-input-bar">
+      <textarea id="chatInput" rows="1" placeholder="Type a message..."></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMsg()" type="button">
+        <i class="bi bi-send-fill"></i>
+      </button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      const params  = new URLSearchParams(location.search);
+      const orderId = params.get("order") || "";
+      let lastMsgCount = 0;
+
+      function fmtTime(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      function fmtDate(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        const today = new Date();
+        if (d.toDateString() === today.toDateString()) return "Today";
+        const yes = new Date(); yes.setDate(yes.getDate() - 1);
+        if (d.toDateString() === yes.toDateString()) return "Yesterday";
+        return d.toLocaleDateString([], { day: "numeric", month: "short" });
+      }
+
+      function renderDeliveryCard(order) {
+        const statusColors = {
+          confirmed: "#6c757d", preparing: "#f59e0b", ready: "#0ea5e9",
+          picked_up: "#6366f1", out_for_delivery: "#2563eb", delivered: "#16a34a",
+        };
+        const col = statusColors[order.status] || "#6c757d";
+        document.getElementById("topbarName").textContent = order.customerName || order.email || "Customer";
+        document.getElementById("topbarOrder").textContent = "Order " + order.id;
+
+        const items = (order.items || [])
+          .filter(i => !i.name.startsWith("Delivery Fee"))
+          .map(i => `${i.name}${i.variationText ? " (" + i.variationText + ")" : ""} ×${i.quantity}`)
+          .join(", ");
+
+        document.getElementById("deliveryCard").innerHTML = `
+          <div class="card-title"><i class="bi bi-box-seam-fill"></i> Delivery Info</div>
+          <div class="info-row">
+            <div class="ic"><i class="bi bi-person-fill"></i></div>
+            <div class="val"><small>Customer</small><strong>${order.customerName || order.email || "—"}</strong></div>
+          </div>
+          <div class="info-row">
+            <div class="ic"><i class="bi bi-geo-alt-fill"></i></div>
+            <div class="val"><small>Delivery Address</small><strong>${order.address || "No address"}</strong></div>
+          </div>
+          <div class="info-row">
+            <div class="ic"><i class="bi bi-bag-fill"></i></div>
+            <div class="val"><small>Items</small><strong>${items || "—"}</strong></div>
+          </div>
+          <div class="info-row">
+            <div class="ic green"><i class="bi bi-cash-stack"></i></div>
+            <div class="val"><small>Total</small><strong>RM ${Number(order.total || 0).toFixed(2)}</strong></div>
+          </div>
+          <div class="info-row">
+            <div class="ic" style="background:#f0f0f0;color:${col}"><i class="bi bi-circle-fill" style="font-size:.5rem"></i></div>
+            <div class="val"><small>Status</small>${AG.statusBadge(order.status)}</div>
+          </div>`;
+      }
+
+      function renderChat(scrollToBottom = false) {
+        const msgs = AG.getChatMessages(orderId);
+        const box = document.getElementById("chatScroll");
+
+        if (!msgs.length) {
+          box.innerHTML = `<div class="empty-chat"><i class="bi bi-chat-dots"></i><p>No messages yet.<br>Send the first message to your customer.</p></div>`;
+          return;
+        }
+
+        let html = "";
+        let lastDate = "";
+        msgs.forEach((m) => {
+          const mine = m.senderRole === "rider";
+          const d = fmtDate(m.at);
+          if (d !== lastDate) {
+            html += `<div class="day-divider">${d}</div>`;
+            lastDate = d;
+          }
+          html += `
+            <div class="bubble-wrap ${mine ? "mine" : "theirs"}">
+              <div class="bubble">${m.text.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+              <div class="bubble-meta">${mine ? "You" : (m.senderName || "Customer")} · ${fmtTime(m.at)}</div>
+            </div>`;
+        });
+        box.innerHTML = html;
+
+        if (scrollToBottom || msgs.length !== lastMsgCount) {
+          box.lastElementChild?.scrollIntoView({ behavior: "smooth" });
+        }
+        lastMsgCount = msgs.length;
+      }
+
+      window.sendMsg = async function () {
+        const input = document.getElementById("chatInput");
+        const btn   = document.getElementById("sendBtn");
+        const text  = input.value.trim();
+        if (!text) return;
+        btn.disabled = true;
+        try {
+          await AG.sendChatMessage(orderId, text, "rider");
+          input.value = "";
+          input.style.height = "auto";
+          renderChat(true);
+        } catch (err) {
+          AG.toast("Send failed", err.message);
+        } finally {
+          btn.disabled = false;
+          input.focus();
+        }
+      };
+
+      /* Send on Enter (Shift+Enter = new line) */
+      document.getElementById("chatInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMsg();
+        }
+      });
+      /* Auto-grow textarea */
+      document.getElementById("chatInput").addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight, 100) + "px";
+      });
+
+      (async () => {
+        const s = await AG.requireRole(["rider"]);
+        if (!s) return;
+
+        if (!orderId) {
+          document.getElementById("deliveryCard").innerHTML =
+            `<div class="card-title"><i class="bi bi-exclamation-triangle me-1"></i> No Order Selected</div>
+             <p class="text-muted small mb-0">Go back and tap the chat icon on an order.</p>`;
+          return;
+        }
+
+        /* Wait up to 5s for Firebase to load the order */
+        let order = null;
+        for (let i = 0; i < 10; i++) {
+          order = AG.orders().find((o) => o.id === orderId);
+          if (order) break;
+          await new Promise((r) => setTimeout(r, 500));
+        }
+
+        if (!order) {
+          document.getElementById("deliveryCard").innerHTML =
+            `<div class="card-title"><i class="bi bi-exclamation-triangle me-1"></i> Order Not Found</div>
+             <p class="text-muted small mb-0">Order ${orderId} could not be found.</p>`;
+          return;
+        }
+
+        renderDeliveryCard(order);
+        renderChat(true);
+        AG.markChatRead(orderId).catch(() => {});
+
+        /* Auto-refresh every 3 seconds */
+        setInterval(() => {
+          const updated = AG.orders().find((o) => o.id === orderId);
+          if (updated) renderDeliveryCard(updated);
+          renderChat(false);
+          AG.markChatRead(orderId).catch(() => {});
+        }, 3000);
+        window.addEventListener("ag-data", () => {
+          const updated = AG.orders().find((o) => o.id === orderId);
+          if (updated) renderDeliveryCard(updated);
+          renderChat(false);
+        });
+      })();
+    </script>
+  </body>
+</html>
