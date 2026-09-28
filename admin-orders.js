@@ -16,6 +16,8 @@
     els.showingOrderCount = document.getElementById('showingOrderCount');
     els.ordersBody = document.getElementById('ordersBody');
     els.logoutBtn = document.getElementById('logoutBtn');
+    els.pendingVerifyCount = document.getElementById('pendingVerifyCount');
+    els.verifyQueue = document.getElementById('verifyQueue');
   }
 
   function getFilteredOrders() {
@@ -25,7 +27,7 @@
     let list = [...AG.orders()];
 
     if (statusFilter !== 'all') {
-      list = list.filter(order => order.status === statusFilter);
+      list = list.filter(order => AG.kitchenStatus(order.status) === statusFilter || order.status === statusFilter);
     }
 
     if (search) {
@@ -41,12 +43,10 @@
     }
 
     const rank = {
-      confirmed: 1,
-      preparing: 2,
-      ready: 3,
-      picked_up: 4,
-      out_for_delivery: 5,
-      delivered: 6
+      awaiting_verification: 0,
+      preparing: 1,
+      ready: 2,
+      delivered: 3
     };
 
     list.sort((a, b) => {
@@ -99,7 +99,7 @@
       return `<tr><td>${text(item.name)}<br><small>${text(detail)}</small></td><td>${text(item.quantity)}</td><td>RM ${amount.toFixed(2)}</td></tr>`;
     }).join('');
 
-    const slipHtml = `<!DOCTYPE html><html><head><title>Order ${order.id}</title><style>body{font-family:Arial;padding:18px;color:#222}h2{margin-bottom:0}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border-bottom:1px solid #ddd;padding:8px;text-align:left}.total{font-size:20px;font-weight:bold;margin-top:18px}</style></head><body><h2>Ayam Gepuk Pagoh</h2><p>Order Slip</p><hr><p><b>Order ID:</b> ${order.id}<br><b>Customer:</b> ${text(order.customer)}<br><b>Phone:</b> ${text(order.phone)}<br><b>Batch:</b> ${AG.batchName(order.batchId)}<br><b>Status:</b> ${AG.STEP_LABELS[order.status] || order.status}<br><b>Order Notes:</b> ${text(order.orderNotes || order.notes)}</p><table><tr><th>Item</th><th>Qty</th><th>Amount</th></tr>${rows}</table><p class="total">Total: RM ${Number(order.total || 0).toFixed(2)}</p></body></html>`;
+    const slipHtml = `<!DOCTYPE html><html><head><title>Order ${order.id}</title><style>body{font-family:Arial;padding:18px;color:#222}h2{margin-bottom:0}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border-bottom:1px solid #ddd;padding:8px;text-align:left}.total{font-size:20px;font-weight:bold;margin-top:18px}</style></head><body><h2>Warisan Cafe</h2><p>Order Slip</p><hr><p><b>Order ID:</b> ${order.id}<br><b>Customer:</b> ${text(order.customer)}<br><b>Phone:</b> ${text(order.phone)}<br><b>Batch:</b> ${AG.batchName(order.batchId)}<br><b>Status:</b> ${AG.STEP_LABELS[order.status] || order.status}<br><b>Order Notes:</b> ${text(order.orderNotes || order.notes)}</p><table><tr><th>Item</th><th>Qty</th><th>Amount</th></tr>${rows}</table><p class="total">Total: RM ${Number(order.total || 0).toFixed(2)}</p></body></html>`;
 
     const printWindow = window.open('', '_blank', 'width=420,height=600');
     if (!printWindow) {
@@ -128,13 +128,17 @@
     select.dataset.orderId = order.id;
     select.dataset.current = order.status;
 
-    AG.ORDER_STEPS.forEach(step => {
+    const waiting = order.paymentStatus === 'awaiting_verification' || order.status === 'awaiting_verification';
+    const steps = waiting ? ['awaiting_verification'] : AG.ORDER_STEPS.filter(step => step !== 'awaiting_verification');
+
+    steps.forEach(step => {
       const option = document.createElement('option');
       option.value = step;
       option.textContent = AG.STEP_LABELS[step];
       option.selected = order.status === step;
       select.appendChild(option);
     });
+    if (waiting) select.disabled = true;
 
     return select;
   }
@@ -162,12 +166,79 @@
     tr.innerHTML = `
       <td colspan="9" style="background:#f1f3f5;padding:8px 14px;cursor:pointer;user-select:none;" class="date-divider-row" data-group="${label}">
         <span style="font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.5px;color:#495057;">
-          <i class="bi bi-calendar3 me-2" style="color:#b94b4d"></i>${label}
+          <i class="bi bi-calendar3 me-2" style="color:#c62828"></i>${label}
         </span>
         <span class="badge bg-secondary ms-2" style="font-size:.72rem">${count} order${count !== 1 ? 's' : ''}</span>
         <i class="bi bi-chevron-${open ? 'up' : 'down'} float-end mt-1" style="color:#6c757d"></i>
       </td>`;
     return tr;
+  }
+
+  function pendingOrders() {
+    return AG.orders().filter(o =>
+      (o.paymentStatus === 'awaiting_verification' || o.status === 'awaiting_verification') &&
+      o.paymentStatus !== 'rejected' &&
+      o.paymentStatus !== 'verified'
+    );
+  }
+
+  function renderVerifyQueue(pending) {
+    if (!els.verifyQueue) return;
+    const list = pending || pendingOrders();
+    if (!list.length) {
+      els.verifyQueue.innerHTML = '<p class="verify-empty mb-0">No orders waiting for payment verification.</p>';
+      return;
+    }
+    els.verifyQueue.innerHTML = list.map(order => {
+      const dateText = order.createdAt ? new Date(order.createdAt).toLocaleString() : '';
+      return `<div class="verify-item">
+        <div>
+          <strong>${text(order.id)}</strong>
+          <div class="small-muted">${dateText}</div>
+          <div>${text(order.customer)}</div>
+          <div class="small-muted">${text(order.phone)}</div>
+        </div>
+        <div>
+          <div>${AG.orderDetails(order)}</div>
+          <div class="fw-bold mt-1">RM ${Number(order.total || 0).toFixed(2)}</div>
+          <div class="small-muted">${text(order.receiptFileName)}</div>
+        </div>
+        <div class="verify-actions">
+          <button class="btn btn-sm btn-outline-secondary view-receipt-btn" type="button" data-order-id="${order.id}">View slip</button>
+          <button class="btn btn-sm btn-brand verify-pay-btn" type="button" data-order-id="${order.id}">Verify</button>
+          <button class="btn btn-sm btn-outline-danger reject-pay-btn" type="button" data-order-id="${order.id}">Reject</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function showReceipt(orderId) {
+    const order = await AG.loadOrderReceipt(orderId);
+    const src = AG.openReceiptFile(order);
+    const modal = document.getElementById('receiptModal');
+    const preview = document.getElementById('receiptPreview');
+    if (!modal || !preview) {
+      window.open(src, '_blank', 'noopener');
+      return;
+    }
+    preview.replaceChildren();
+    const isPdf = String(src).includes('application/pdf') || String(order.receiptContentType || '').includes('pdf') || /\.pdf$/i.test(order.receiptFileName || '');
+    if (isPdf && !String(src).startsWith('data:image')) {
+      const frame = document.createElement('iframe');
+      frame.src = src;
+      frame.style.cssText = 'width:100%;min-height:70vh;border:0';
+      preview.appendChild(frame);
+    } else {
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Receipt';
+      img.style.cssText = 'max-width:100%;height:auto;display:block;margin:0 auto';
+      img.onerror = () => {
+        preview.textContent = 'Receipt could not be displayed. Ask the customer to upload a JPG or PNG screenshot.';
+      };
+      preview.appendChild(img);
+    }
+    modal.style.display = 'flex';
   }
 
   function renderOrders() {
@@ -179,7 +250,10 @@
     const statusFilter = els.orderStatusFilter.value || 'all';
     const hasFilter = search !== '' || statusFilter !== 'all';
 
-    els.newOrderCount.textContent = all.filter(o => o.status === 'confirmed').length;
+    const pending = pendingOrders();
+    els.newOrderCount.textContent = pending.length;
+    if (els.pendingVerifyCount) els.pendingVerifyCount.textContent = pending.length;
+    renderVerifyQueue(pending);
     els.showingOrderCount.textContent = list.length;
     els.ordersBody.innerHTML = '';
 
@@ -208,10 +282,10 @@
     const todayHeader = document.createElement('tr');
     todayHeader.innerHTML = `
       <td colspan="9" style="background:#fff0f0;padding:8px 14px;">
-        <span style="font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.5px;color:#b94b4d;">
+        <span style="font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.5px;color:#c62828;">
           <i class="bi bi-circle-fill me-2" style="font-size:.5rem;vertical-align:middle"></i>Today
         </span>
-        <span class="badge ms-2" style="background:#b94b4d;font-size:.72rem">${todayOrders.length} order${todayOrders.length !== 1 ? 's' : ''}</span>
+        <span class="badge ms-2" style="background:#c62828;font-size:.72rem">${todayOrders.length} order${todayOrders.length !== 1 ? 's' : ''}</span>
       </td>`;
     els.ordersBody.appendChild(todayHeader);
 
@@ -260,15 +334,78 @@
     els.clearFiltersBtn.addEventListener('click', clearOrderFilters);
     if (els.logoutBtn) els.logoutBtn.addEventListener('click', () => AG.logout());
 
+    async function handleVerifyClicks(event) {
+      const viewBtn = event.target.closest('.view-receipt-btn');
+      if (viewBtn) {
+        try {
+          await showReceipt(viewBtn.dataset.orderId);
+        } catch (err) {
+          AG.toast('Receipt unavailable', err.message || 'No receipt uploaded.');
+        }
+        return true;
+      }
+      const verifyBtn = event.target.closest('.verify-pay-btn');
+      if (verifyBtn) {
+        verifyBtn.disabled = true;
+        AG.verifyPayment(verifyBtn.dataset.orderId)
+          .then(() => renderOrders())
+          .catch(err => {
+            AG.toast('Verify failed', err.message || 'Could not verify payment.');
+            verifyBtn.disabled = false;
+          });
+        return true;
+      }
+      const rejectBtn = event.target.closest('.reject-pay-btn');
+      if (rejectBtn) {
+        rejectBtn.disabled = true;
+        AG.rejectPayment(rejectBtn.dataset.orderId)
+          .then(() => renderOrders())
+          .catch(err => {
+            AG.toast('Reject failed', err.message || 'Could not reject payment.');
+            rejectBtn.disabled = false;
+          });
+        return true;
+      }
+      return false;
+    }
+
+    if (els.verifyQueue) {
+      els.verifyQueue.addEventListener('click', handleVerifyClicks);
+    }
+
     els.ordersBody.addEventListener('change', event => {
       if (event.target.classList.contains('order-status-select')) {
         changeOrderStatus(event.target.dataset.orderId, event.target);
       }
     });
 
-    els.ordersBody.addEventListener('click', event => {
+    els.ordersBody.addEventListener('click', async event => {
       const btn = event.target.closest('.print-btn');
       if (btn) { printOrder(btn.dataset.orderId); return; }
+
+      const viewBtn = event.target.closest('.view-receipt-btn');
+      if (viewBtn) {
+        try {
+          await showReceipt(viewBtn.dataset.orderId);
+        } catch (err) {
+          AG.toast('Receipt unavailable', err.message || 'No receipt uploaded.');
+        }
+        return;
+      }
+
+      const verifyBtn = event.target.closest('.verify-pay-btn');
+      if (verifyBtn) {
+        verifyBtn.disabled = true;
+        AG.verifyPayment(verifyBtn.dataset.orderId)
+          .then(() => {
+            renderOrders();
+          })
+          .catch(err => {
+            AG.toast('Verify failed', err.message || 'Could not verify payment.');
+            verifyBtn.disabled = false;
+          });
+        return;
+      }
 
       const divider = event.target.closest('.date-divider-row');
       if (divider) {
@@ -338,7 +475,7 @@
         knownOrderIds.add(order.id);
         playBeep();
         showNewOrderBanner(order);
-        if (autoPrintEnabled()) printToServer(order);
+        if (autoPrintEnabled() && order.paymentStatus === 'verified') printToServer(order);
       }
     });
   }
@@ -385,7 +522,7 @@
         const fakeOrder = {
           id: 'TEST-001', customer: 'Test Customer', phone: '012-3456789',
           batchName: 'Lunch 12–2pm', total: 12.50, createdAt: new Date().toISOString(),
-          items: [{ name: 'Ayam Gepuk Original', quantity: 1, price: 8.50, variation: 'Pedas' },
+          items: [{ name: 'Warisan Set', quantity: 1, price: 8.50, variation: 'Regular' },
                   { name: 'Nasi Putih', quantity: 1, price: 2.00 },
                   { name: 'Air Sirap', quantity: 1, price: 2.00 }],
         };
@@ -400,9 +537,22 @@
     cacheEls();
     const session = await AG.requireRole(['admin']);
     if (!session) return;
-    await AG.init();
     setupEvents();
     setupPrintControls();
+    const closeReceipt = document.getElementById('closeReceiptModal');
+    const receiptModal = document.getElementById('receiptModal');
+    if (closeReceipt && receiptModal) {
+      closeReceipt.addEventListener('click', () => {
+        receiptModal.style.display = 'none';
+        document.getElementById('receiptPreview').innerHTML = '';
+      });
+      receiptModal.addEventListener('click', (e) => {
+        if (e.target === receiptModal) {
+          receiptModal.style.display = 'none';
+          document.getElementById('receiptPreview').innerHTML = '';
+        }
+      });
+    }
 
     /* Seed known IDs from current orders so existing ones don't trigger auto-print */
     AG.orders().forEach(o => knownOrderIds.add(o.id));
@@ -410,6 +560,5 @@
 
     renderOrders();
     window.addEventListener('ag-data', () => { checkNewOrders(); renderOrders(); });
-    setInterval(renderOrders, 3000);
   });
 })();

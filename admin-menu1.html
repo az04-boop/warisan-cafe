@@ -7,9 +7,9 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
     <title>Admin Menu</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -35,7 +35,7 @@
       }
       .sidebar {
         width: 240px;
-        background: #b94b4d;
+        background: var(--header-grad);
         color: white;
         padding: 24px 18px;
         position: fixed;
@@ -45,12 +45,12 @@
         overflow-y: auto;
       }
       .sidebar-logo {
-        width: 78px;
-        height: 78px;
+        width: 88px;
+        height: 88px;
         object-fit: contain;
-        background: white;
-        border-radius: 8px;
-        padding: 4px;
+        background: #111;
+        border-radius: 16px;
+        padding: 6px;
         display: block;
         margin: 0 auto 14px;
       }
@@ -77,8 +77,8 @@
       }
       .nav-link-admin:hover,
       .nav-link-admin.active {
-        background: white;
-        color: #b94b4d;
+        background: rgba(0, 0, 0, 0.28);
+        color: #fff;
       }
       .admin-main {
         margin-left: 240px;
@@ -107,7 +107,7 @@
         min-height: 46px;
       }
       .btn-brand {
-        background: #b94b4d;
+        background: var(--header-grad);
         color: white;
         border-radius: 12px;
         border: none;
@@ -201,7 +201,7 @@
         max-width: 85%;
       }
       .msg.user {
-        background: #b94b4d;
+        background: var(--header-grad);
         color: #fff;
         margin-left: auto;
       }
@@ -251,16 +251,16 @@
   <body>
     <div class="admin-layout">
       <aside class="sidebar">
-        <img src="images/logo.png" class="sidebar-logo" alt="Logo" />
-        <h5>ADMIN PORTAL</h5>
+        <img src="images/logo.png?v=warisan" class="sidebar-logo" alt="Logo" />
+        <h5>WARISAN CAFE</h5>
         <a class="nav-link-admin" href="admin-dashboard1.html"
           ><i class="bi bi-speedometer2"></i> Orders</a
         ><a class="nav-link-admin" href="admin-batch1.html"
           ><i class="bi bi-calendar-plus"></i> Batch</a
         ><a class="nav-link-admin active" href="admin-menu1.html"
           ><i class="bi bi-list-ul"></i> Menu</a
-        ><a class="nav-link-admin" href="admin-ai1.html"
-          ><i class="bi bi-robot"></i> AI Inventory</a
+        ><a class="nav-link-admin" href="admin-riders1.html"
+          ><i class="bi bi-bicycle"></i> Rider</a
         >
         <div class="sidebar-footer">
           <button class="nav-link-admin" onclick="AG.logout()">
@@ -312,7 +312,7 @@
                   ><input
                     id="menuNameInput"
                     class="form-control"
-                    placeholder="Ayam Gepuk Set A"
+                    placeholder="Set A"
                   />
                 </div>
                 <div class="col-md-3">
@@ -394,7 +394,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -702,6 +701,34 @@
         }
       }
 
+      function formatVariationCell(groups) {
+        if (!groups || !groups.length) {
+          return '<span class="text-muted">—</span>';
+        }
+        return groups
+          .map((g) => {
+            const isAddon = g.type === "addon";
+            const badge = `<span class="badge ${isAddon ? "bg-info" : "bg-danger"}">${isAddon ? "Add-on" : "Required"}</span>`;
+            const opts = (g.options || [])
+              .map((o) => {
+                const extra =
+                  Number(o.price) > 0
+                    ? ` <span class="small-muted">+RM ${Number(o.price).toFixed(2)}</span>`
+                    : "";
+                return `<span class="d-inline-block me-1">${escapeHtml(o.name || "")}${extra}</span>`;
+              })
+              .join("") || '<span class="text-muted">No options</span>';
+            const groupName = String(g.name || "").trim();
+            const skipName =
+              !groupName ||
+              groupName.length <= 1 ||
+              /^add[\s-]?on$/i.test(groupName) ||
+              /^option$/i.test(groupName);
+            return `<div class="mb-2">${badge}${skipName ? "" : ` <span class="small-muted">${escapeHtml(groupName)}</span>`}<div class="mt-1">${opts}</div></div>`;
+          })
+          .join("");
+      }
+
       function renderMenu() {
         const list = AG.menu();
         if (!list.length) {
@@ -712,7 +739,7 @@
         menuBody.innerHTML = list
           .map(
             (m) =>
-              `<tr><td><img src="${AG.imageSrc(m.image)}" class="menu-img-table"></td><td><strong>${m.name}</strong><div class="small-muted">${m.desc || ""}</div></td><td>RM ${Number(m.price || 0).toFixed(2)}</td><td>${(m.variationGroups || []).map((g) => `<strong>${g.name}</strong> <span class="badge ${g.type === "addon" ? "bg-info" : "bg-danger"}">${g.type === "addon" ? "Add-on" : "Required"}</span>: ${(g.options || []).map((o) => o.name + (Number(o.price) > 0 ? " +RM " + Number(o.price).toFixed(2) : "")).join(", ")}`).join("<br>")}</td><td>${m.active === false ? '<span class="badge bg-secondary">Hidden</span>' : '<span class="badge bg-success">Active</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" onclick="editMenu('${m.id}')">Edit</button><button class="btn btn-sm btn-outline-danger" onclick="deleteMenu('${m.id}')">Delete</button></td></tr>`,
+              `<tr><td><img src="${AG.imageSrc(m.image)}" class="menu-img-table"></td><td><strong>${m.name}</strong><div class="small-muted">${m.desc || ""}</div></td><td>RM ${Number(m.price || 0).toFixed(2)}</td><td>${formatVariationCell(m.variationGroups)}</td><td>${m.active === false ? '<span class="badge bg-secondary">Hidden</span>' : '<span class="badge bg-success">Active</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" onclick="editMenu('${m.id}')">Edit</button><button class="btn btn-sm btn-outline-danger" onclick="deleteMenu('${m.id}')">Delete</button></td></tr>`,
           )
           .join("");
       }
@@ -720,7 +747,6 @@
       (async () => {
         const s = await AG.requireRole(["admin"]);
         if (!s) return;
-        await AG.init();
         resetMenuForm();
         renderMenu();
         window.addEventListener("ag-data", renderMenu);

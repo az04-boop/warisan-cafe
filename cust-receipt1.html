@@ -7,11 +7,11 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Digital Receipt — Ayam Gepuk Pagoh</title>
+    <title>Digital Receipt — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="dns-prefetch" href="https://www.gstatic.com" />
@@ -31,22 +31,24 @@
         align-items: center;
         gap: 12px;
         padding: 16px 18px;
-        background: #fff;
-        border-bottom: 1px solid var(--border);
+        background: var(--header-grad);
+        color: #fff;
+        border-bottom: 0;
       }
       .sub-header .back {
         width: 38px;
         height: 38px;
         border-radius: 50%;
-        background: #f6f4f4;
+        background: rgba(255,255,255,.2);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--text);
+        color: #fff;
       }
       .sub-header h5 {
         margin: 0;
         font-weight: 800;
+        color: #fff;
       }
       .receipt-card {
         background: #fff;
@@ -109,7 +111,7 @@
         <div class="receipt-card printable">
           <div class="text-center">
             <img
-              src="images/logo.png"
+              src="images/logo.png?v=warisan"
               width="72"
               alt="Logo"
               style="
@@ -119,12 +121,12 @@
                 box-shadow: var(--shadow-sm);
               "
             />
-            <h5 class="fw-bold mt-2 mb-1">Ayam Gepuk Pagoh</h5>
+            <h5 class="fw-bold mt-2 mb-1">Warisan Cafe</h5>
             <small class="text-muted" id="date"></small>
             <div class="mt-2">
-              <span class="stamp"
-                ><i class="bi bi-check-circle-fill me-1"></i>Order
-                Confirmed</span
+              <span class="stamp" id="receiptStamp"
+                ><i class="bi bi-hourglass-split me-1"></i>Awaiting
+                Verification</span
               >
             </div>
           </div>
@@ -168,7 +170,7 @@
             <small
               class="text-muted"
               style="font-family: monospace; letter-spacing: 0.5px"
-              >— ayamgepukpagoh.my —</small
+              >— warisancafe —</small
             >
           </div>
         </div>
@@ -187,12 +189,11 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
       (async () => {
-        await AG.init();
+        await AG.requireRole(["customer"], ["orders"]);
         document.getElementById("date").textContent =
           new Date().toLocaleString();
 
@@ -205,7 +206,17 @@
         document.getElementById("receiptCustomer").textContent =
           order?.customer || AG.session()?.name || "Customer";
         document.getElementById("receiptPayment").textContent =
-          order?.payment || "Online Banking";
+          order?.paymentProvider === "QR"
+            ? "QR Transfer"
+            : order?.payment || "QR Transfer";
+        const stamp = document.getElementById("receiptStamp");
+        if (order?.paymentStatus === "verified") {
+          stamp.innerHTML =
+            '<i class="bi bi-check-circle-fill me-1"></i>Payment Verified';
+        } else {
+          stamp.innerHTML =
+            '<i class="bi bi-hourglass-split me-1"></i>Awaiting Verification';
+        }
 
         let total = 0;
         document.getElementById("receiptItems").innerHTML =

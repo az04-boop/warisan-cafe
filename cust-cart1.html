@@ -7,11 +7,11 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Cart — Ayam Gepuk Pagoh</title>
+    <title>Cart — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
@@ -31,8 +31,9 @@
         align-items: center;
         gap: 12px;
         padding: 16px 18px;
-        background: #fff;
-        border-bottom: 1px solid var(--border);
+        background: var(--header-grad);
+        color: #fff;
+        border-bottom: 0;
         position: sticky;
         top: 0;
         z-index: 20;
@@ -41,21 +42,22 @@
         width: 38px;
         height: 38px;
         border-radius: 50%;
-        background: #f6f4f4;
+        background: rgba(255,255,255,.2);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--text);
+        color: #fff;
         transition: var(--transition);
         flex-shrink: 0;
       }
       .sub-header .back:hover {
-        background: var(--brand-soft);
-        color: var(--brand);
+        background: rgba(255,255,255,.32);
+        color: #fff;
       }
       .sub-header h5 {
         margin: 0;
         font-weight: 800;
+        color: #fff;
       }
       .cart-item {
         display: flex;
@@ -163,10 +165,10 @@
     .addr-modal h5{font-weight:800;margin-bottom:4px}
     .addr-modal p{color:#6b7280;font-size:13px;margin-bottom:18px}
     .area-option{display:flex;align-items:center;gap:12px;padding:13px 15px;border:2px solid #e5e7eb;border-radius:14px;margin-bottom:8px;cursor:pointer;transition:all .18s}
-    .area-option:hover{border-color:#b94b4d;background:#fff8f8}
-    .area-option.selected{border-color:#b94b4d;background:#fff0f0}
+    .area-option:hover{border-color:#c62828;background:#fff8f8}
+    .area-option.selected{border-color:#c62828;background:#fff0f0}
     .area-option .area-icon{width:40px;height:40px;border-radius:12px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-    .area-option.selected .area-icon{background:#b94b4d;color:#fff}
+    .area-option.selected .area-icon{background:#c62828;color:#fff}
     .area-option .area-text strong{display:block;font-size:14px;font-weight:700}
     .area-option .area-text small{color:#6b7280;font-size:12px}
     .fee-badge{background:#dcfce7;color:#15803d;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;flex-shrink:0}
@@ -187,16 +189,19 @@
         <div id="cartBox"></div>
 
         <div class="summary-card">
+          <h6 class="fw-bold mb-2">Delivery option</h6>
+          <div id="deliveryOptions"></div>
+
           <label class="form-label fw-bold">Select Batch</label>
           <select id="batchSelect" class="form-select mb-3"></select>
 
           <h6 class="fw-bold mb-2">Payment Method</h6>
           <label class="pay-option selected" id="payOpt1">
-            <input type="radio" name="pay" value="fpx" checked />
-            <span class="pay-icon"><i class="bi bi-bank"></i></span>
+            <input type="radio" name="pay" value="qr" checked />
+            <span class="pay-icon"><i class="bi bi-qr-code"></i></span>
             <span class="pay-text">
-              <strong>Online Banking / FPX</strong>
-              <small>Pay securely with your bank account</small>
+              <strong>QR Transfer</strong>
+              <small>Scan QR, then upload your payment receipt</small>
             </span>
             <i class="bi bi-check-circle-fill text-brand fs-5"></i>
           </label>
@@ -210,7 +215,7 @@
               border-radius: 12px;
             "
           >
-            <i class="bi bi-shield-check me-1"></i> Order will be automatically sent to our kitchen once payment is confirmed.
+            <i class="bi bi-shield-check me-1"></i> After you pay, upload your receipt. The kitchen starts once admin verifies payment.
           </div>
         </div>
 
@@ -224,8 +229,8 @@
             <span id="deliveryFeeDisplay" class="text-green">—</span>
           </div>
           <div class="summary-row" id="addressRow" style="font-size:12px;color:#6b7280;display:none">
-            <span><i class="bi bi-geo-alt-fill me-1" style="color:#b94b4d"></i><span id="cartAddressLabel"></span></span>
-            <a href="#" onclick="showAddressModal();return false" style="color:#b94b4d;font-weight:700;font-size:12px">Change</a>
+            <span><i class="bi bi-geo-alt-fill me-1" style="color:#c62828"></i><span id="cartAddressLabel"></span></span>
+            <a href="#" onclick="showAddressModal();return false" style="color:#c62828;font-weight:700;font-size:12px">Change</a>
           </div>
           <div class="summary-row total">
             <span>Total</span><span id="total">RM 0.00</span>
@@ -238,7 +243,7 @@
           onclick="placeOrder()"
           style="font-size: 1.05rem"
         >
-          <i class="bi bi-credit-card-2-front-fill me-2"></i>Confirm and Pay
+          <i class="bi bi-qr-code me-2"></i>Continue to Payment
         </button>
       </div>
 
@@ -255,39 +260,15 @@
     <!-- Address gate modal -->
     <div class="addr-modal-backdrop" id="addressModalBackdrop">
       <div class="addr-modal">
-        <h5><i class="bi bi-geo-alt-fill me-2" style="color:#b94b4d"></i>Set Delivery Address</h5>
-        <p>Select your delivery area and add your block / room details before checkout.</p>
+        <h5><i class="bi bi-geo-alt-fill me-2" style="color:#c62828"></i>Phone & delivery address</h5>
+        <p>Phone number and delivery address are required before checkout.</p>
 
-        <div class="area-option" data-area="Kolej Kediaman UTHM" data-fee="0.50" onclick="selectArea(this)">
-          <div class="area-icon">🏫</div>
-          <div class="area-text">
-            <strong>Kolej Kediaman UTHM</strong>
-            <small>Kolej kediaman dalam kampus UTHM Pagoh</small>
-          </div>
-          <span class="fee-badge">RM 0.50</span>
-        </div>
-        <div class="area-option" data-area="UIA / IIUM" data-fee="0.50" onclick="selectArea(this)">
-          <div class="area-icon">🎓</div>
-          <div class="area-text">
-            <strong>UIA / IIUM</strong>
-            <small>Universiti Islam Antarabangsa Malaysia, Pagoh</small>
-          </div>
-          <span class="fee-badge">RM 0.50</span>
-        </div>
-        <div class="area-option" data-area="Pagoh Jaya" data-fee="1.00" onclick="selectArea(this)">
-          <div class="area-icon">🏘️</div>
-          <div class="area-text">
-            <strong>Pagoh Jaya</strong>
-            <small>Kawasan perumahan Pagoh Jaya</small>
-          </div>
-          <span class="fee-badge">RM 1.00</span>
-        </div>
+        <label class="form-label fw-semibold" style="font-size:13px">Phone number <span style="color:#c62828">*</span></label>
+        <input type="tel" id="addrPhoneInput" class="form-control mb-3" placeholder="01X-XXXXXXXX">
 
-        <div class="detail-section" id="addrDetailSection">
-          <label class="form-label fw-semibold mt-2" style="font-size:13px">Block / Room / Road Name <span style="color:#b94b4d">*</span></label>
-          <input type="text" id="addrDetailInput" class="form-control" placeholder="e.g. Blok A, Bilik 203 / No. 12, Jalan Mawar">
-          <div style="font-size:11px;color:#9ca3af;margin-top:5px">Add your block, room number, or street name so our rider can find you.</div>
-        </div>
+        <label class="form-label fw-semibold" style="font-size:13px">Delivery address <span style="color:#c62828">*</span></label>
+        <input type="text" id="addrDetailInput" class="form-control" placeholder="e.g. Blok A, Bilik 203 / No. 12, Jalan Mawar">
+        <div style="font-size:11px;color:#9ca3af;margin-top:5px">Add your block, room number, or street name.</div>
 
         <button class="btn btn-brand w-100 mt-4 py-2" id="saveAddressBtn" onclick="saveAddressAndPay()" style="border-radius:14px;font-weight:700" disabled>
           <i class="bi bi-check-circle-fill me-2"></i>Save & Continue to Payment
@@ -299,90 +280,116 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
-      /* ── Delivery fee table ── */
-      const DELIVERY_FEES = {
-        'Kolej Kediaman UTHM': 0.50,
-        'UIA / IIUM': 0.50,
-        'Pagoh Jaya': 1.00,
-      };
+      const DELIVERY_OPTIONS = AG.DELIVERY_OPTIONS || [];
+      let selectedDeliveryId = AG.get("agDeliveryType", "normal");
 
-      function getDeliveryFee(area) {
-        return DELIVERY_FEES[area] || 0;
+      function selectedDelivery() {
+        return (
+          DELIVERY_OPTIONS.find((d) => d.id === selectedDeliveryId) ||
+          DELIVERY_OPTIONS[0]
+        );
       }
 
-      /* ── Address modal ── */
-      let _selectedArea = '', _pendingPay = false;
+      function getDeliveryFee() {
+        return Number(selectedDelivery()?.price || 0);
+      }
+
+      function renderDeliveryOptions() {
+        const box = document.getElementById("deliveryOptions");
+        if (!box) return;
+        box.innerHTML = DELIVERY_OPTIONS.map((d) => {
+          const on = d.id === selectedDeliveryId;
+          return `<label class="pay-option ${on ? "selected" : ""}">
+            <input type="radio" name="delivery" value="${d.id}" ${on ? "checked" : ""} />
+            <span class="pay-icon"><i class="bi ${d.id === "fast" ? "bi-lightning-fill" : d.id === "door" ? "bi-door-open-fill" : "bi-bicycle"}"></i></span>
+            <span class="pay-text"><strong>${d.name}</strong><small>${d.desc}</small></span>
+            <strong class="text-brand">RM ${Number(d.price).toFixed(2)}</strong>
+          </label>`;
+        }).join("");
+        box.querySelectorAll("input[name=delivery]").forEach((input) => {
+          input.addEventListener("change", () => {
+            selectedDeliveryId = input.value;
+            AG.set("agDeliveryType", selectedDeliveryId);
+            box.querySelectorAll(".pay-option").forEach((el) => el.classList.remove("selected"));
+            input.closest(".pay-option").classList.add("selected");
+            refreshDeliveryUI();
+          });
+        });
+      }
+
+      let _pendingPay = false;
 
       window.showAddressModal = function() {
-        _selectedArea = '';
-        document.querySelectorAll('.area-option').forEach(el => el.classList.remove('selected'));
-        document.getElementById('addrDetailSection').classList.remove('show');
-        document.getElementById('addrDetailInput').value = '';
-        document.getElementById('saveAddressBtn').disabled = true;
-        document.getElementById('addressModalBackdrop').classList.add('show');
+        const profile = AG.session() || {};
+        document.getElementById("addrPhoneInput").value = profile.phone || "";
+        document.getElementById("addrDetailInput").value =
+          profile.addressDetail || profile.address || "";
+        updateSaveBtn();
+        document.getElementById("addressModalBackdrop").classList.add("show");
       };
 
       window.closeAddressModal = function() {
-        document.getElementById('addressModalBackdrop').classList.remove('show');
+        document.getElementById("addressModalBackdrop").classList.remove("show");
         _pendingPay = false;
       };
 
-      window.selectArea = function(el) {
-        document.querySelectorAll('.area-option').forEach(e => e.classList.remove('selected'));
-        el.classList.add('selected');
-        _selectedArea = el.dataset.area;
-        document.getElementById('addrDetailSection').classList.add('show');
-        document.getElementById('addrDetailInput').focus();
-        updateSaveBtn();
-      };
-
-      document.getElementById('addrDetailInput').addEventListener('input', updateSaveBtn);
+      document.getElementById("addrPhoneInput").addEventListener("input", updateSaveBtn);
+      document.getElementById("addrDetailInput").addEventListener("input", updateSaveBtn);
 
       function updateSaveBtn() {
-        const detail = document.getElementById('addrDetailInput').value.trim();
-        document.getElementById('saveAddressBtn').disabled = !(_selectedArea && detail);
+        const phone = document.getElementById("addrPhoneInput").value.trim();
+        const detail = document.getElementById("addrDetailInput").value.trim();
+        document.getElementById("saveAddressBtn").disabled = !(phone && detail);
       }
 
       window.saveAddressAndPay = async function() {
-        const detail = document.getElementById('addrDetailInput').value.trim();
-        if (!_selectedArea || !detail) return;
-        const btn = document.getElementById('saveAddressBtn');
+        const phone = document.getElementById("addrPhoneInput").value.trim();
+        const detail = document.getElementById("addrDetailInput").value.trim();
+        if (!phone || !detail) {
+          AG.toast(
+            "Details required",
+            "Please add your phone number and delivery address.",
+          );
+          return;
+        }
+        const btn = document.getElementById("saveAddressBtn");
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
         try {
-          await AG.updateCustomerProfile({ addressArea: _selectedArea, addressDetail: detail });
+          await AG.updateCustomerProfile({
+            phone,
+            addressDetail: detail,
+            addressArea: "",
+          });
           closeAddressModal();
           refreshDeliveryUI();
           if (_pendingPay) await doPay();
         } catch (err) {
-          AG.toast('Save failed', err.message);
+          AG.toast("Save failed", err.message);
         } finally {
           btn.disabled = false;
           btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Save & Continue to Payment';
         }
       };
 
-      /* ── Delivery fee UI ── */
       function refreshDeliveryUI() {
         const profile = AG.session();
-        const area = profile && profile.addressArea;
-        const fee  = getDeliveryFee(area);
-        const feeEl = document.getElementById('deliveryFeeDisplay');
-        const addrRow = document.getElementById('addressRow');
-        const addrLabel = document.getElementById('cartAddressLabel');
-        if (area) {
-          feeEl.textContent = fee > 0 ? 'RM ' + fee.toFixed(2) : 'FREE';
-          feeEl.className = fee > 0 ? 'text-danger fw-bold' : 'text-green';
-          addrLabel.textContent = (profile.addressDetail ? profile.addressDetail + ', ' : '') + area;
-          addrRow.style.display = 'flex';
+        const fee = getDeliveryFee();
+        const feeEl = document.getElementById("deliveryFeeDisplay");
+        const addrRow = document.getElementById("addressRow");
+        const addrLabel = document.getElementById("cartAddressLabel");
+        const d = selectedDelivery();
+        feeEl.textContent = "RM " + fee.toFixed(2);
+        feeEl.className = "text-danger fw-bold";
+        const addr = (profile && (profile.addressDetail || profile.address)) || "";
+        if (addr) {
+          addrLabel.textContent = addr + (d ? " · " + d.name : "");
+          addrRow.style.display = "flex";
         } else {
-          feeEl.textContent = '—';
-          feeEl.className = 'text-muted';
-          addrRow.style.display = 'none';
+          addrRow.style.display = "none";
         }
         renderCartTotals();
       }
@@ -393,14 +400,13 @@
 
       function renderCartTotals() {
         const sub = cartSubtotal();
-        const profile = AG.session();
-        const fee = getDeliveryFee(profile && profile.addressArea);
-        document.getElementById('subtotal').textContent = 'RM ' + sub.toFixed(2);
-        document.getElementById('total').textContent    = 'RM ' + (sub + fee).toFixed(2);
+        const fee = getDeliveryFee();
+        document.getElementById("subtotal").textContent = "RM " + sub.toFixed(2);
+        document.getElementById("total").textContent = "RM " + (sub + fee).toFixed(2);
       }
 
       (async () => {
-        const s = await AG.requireRole(["customer"]);
+        const s = await AG.requireRole(["customer"], ["batches"]);
         if (!s) return;
         function cart() {
           return AG.get("ayamGepukCart", []);
@@ -413,17 +419,7 @@
           return cart().reduce((a, i) => a + Number(i.quantity || 1), 0);
         }
         function usedPax(bid) {
-          return AG.orders()
-            .filter((o) => o.batchId === bid && o.status !== "delivered")
-            .reduce(
-              (sum, o) =>
-                sum +
-                (o.items || []).reduce(
-                  (a, i) => a + Number(i.quantity || 1),
-                  0,
-                ),
-              0,
-            );
+          return Number(AG.batches().find((b) => b.id === bid)?.usedPax || 0);
         }
         function isFull(b) {
           return (
@@ -492,27 +488,23 @@
             AG.toast("Pax limit exceeded", "Your cart quantity exceeds remaining batch pax."); return;
           }
           const profile = AG.session();
-          const fee = getDeliveryFee(profile && profile.addressArea);
-          /* add delivery fee as a cart line item if > 0 */
+          const d = selectedDelivery();
+          const fee = getDeliveryFee();
           const cartWithFee = fee > 0
-            ? [...c, { name: 'Delivery Fee (' + profile.addressArea + ')', price: fee, quantity: 1, variationText: '' }]
+            ? [...c, { name: "Delivery Fee (" + d.name + ")", price: fee, quantity: 1, variationText: "" }]
             : c;
           try {
             placeOrderBtn.disabled = true;
-            placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>REDIRECTING TO STRIPE...';
-            const checkout = AG.createCheckoutSession(cartWithFee, "Stripe FPX Online Banking", batchSelect.value);
-            const res = await fetch("/api/create-checkout-session", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ checkout, customer: profile }),
+            placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Opening payment...';
+            AG.createCheckoutSession(cartWithFee, "QR", batchSelect.value, {
+              deliveryType: d.id,
+              deliveryName: d.name,
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to create Stripe checkout session.");
-            location.href = data.url;
+            location.href = "cust-payment1.html";
           } catch (err) {
-            AG.toast("Stripe checkout failed", err.message + ". Make sure you run the project using npm start.");
+            AG.toast("Checkout failed", err.message);
             placeOrderBtn.disabled = false;
-            placeOrderBtn.innerHTML = '<i class="bi bi-credit-card-2-front-fill me-2"></i>Confirm and Pay';
+            placeOrderBtn.innerHTML = '<i class="bi bi-qr-code me-2"></i>Continue to Payment';
           }
         };
 
@@ -522,7 +514,11 @@
 
           /* ── Address gate ── */
           const profile = AG.session();
-          if (!profile || !profile.addressArea || !profile.addressDetail) {
+          if (AG.needsCustomerContact(profile)) {
+            AG.toast(
+              "Details required",
+              "Please add your phone number and delivery address.",
+            );
             _pendingPay = true;
             showAddressModal();
             return;
@@ -530,6 +526,7 @@
 
           await doPay();
         };
+        renderDeliveryOptions();
         renderCart();
         refreshDeliveryUI();
         window.addEventListener("ag-data", renderBatch);

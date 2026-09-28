@@ -7,11 +7,11 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Delivery Status — GepukGO</title>
+    <title>Delivery Status — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
@@ -31,8 +31,9 @@
         align-items: center;
         gap: 12px;
         padding: 16px 18px;
-        background: #fff;
-        border-bottom: 1px solid var(--border);
+        background: var(--header-grad);
+        color: #fff;
+        border-bottom: 0;
         position: sticky;
         top: 0;
         z-index: 20;
@@ -41,23 +42,20 @@
         width: 38px;
         height: 38px;
         border-radius: 50%;
-        background: #f6f4f4;
+        background: rgba(255,255,255,.2);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--text);
+        color: #fff;
         flex-shrink: 0;
       }
       .sub-header h5 {
         margin: 0;
         font-weight: 800;
+        color: #fff;
       }
       .order-summary {
-        background: linear-gradient(
-          135deg,
-          var(--brand) 0%,
-          var(--brand-dark) 100%
-        );
+        background: var(--header-grad);
         color: #fff;
         border-radius: 18px;
         padding: 18px;
@@ -185,7 +183,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
@@ -244,23 +241,12 @@
           successBox.classList.add("d-none");
 
           /* ── Show only the next available action(s) ── */
-          const steps = AG.ORDER_STEPS;
-          const idx = steps.indexOf(o.status);
-
           let btns = "";
-          if (idx < steps.indexOf("picked_up")) {
-            btns += `<button class="btn btn-brand action-btn" onclick="pickup()">
-              <i class="bi bi-box-arrow-up me-1"></i>PICKED UP BY RIDER
-            </button>`;
-          }
-          if (idx < steps.indexOf("out_for_delivery")) {
-            btns += `<button class="btn btn-brand action-btn" onclick="outDelivery()" ${idx < steps.indexOf("picked_up") ? 'style="opacity:.45" disabled title="Pick up first"' : ""}>
-              <i class="bi bi-bicycle me-1"></i>OUT FOR DELIVERY
-            </button>`;
-          }
-          btns += `<button class="btn btn-green action-btn" onclick="delivered()" ${idx < steps.indexOf("out_for_delivery") ? 'style="opacity:.45" disabled title="Must be out for delivery first"' : ""}>
+          if (AG.kitchenStatus(o.status) === "ready") {
+            btns += `<button class="btn btn-green action-btn" onclick="delivered()">
             <i class="bi bi-check-circle-fill me-1"></i>DELIVERED + SEND PROOF
           </button>`;
+          }
           actionBtns.innerHTML = btns;
         };
 
@@ -280,16 +266,6 @@
           }
         };
 
-        window.pickup = async function () {
-          await AG.updateOrderStatus(oid, "picked_up");
-          render();
-          AG.toast("Updated", "Customer notified: picked up.");
-        };
-        window.outDelivery = async function () {
-          await AG.updateOrderStatus(oid, "out_for_delivery");
-          render();
-          AG.toast("Updated", "Customer notified: out for delivery.");
-        };
         window.delivered = async function () {
           if (!proofUrl) {
             AG.toast("Proof required", "Please capture proof photo with camera first.");

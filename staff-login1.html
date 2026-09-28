@@ -7,11 +7,11 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Staff Login — GepukGO</title>
+    <title>Staff Login — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="dns-prefetch" href="https://www.gstatic.com" />
@@ -60,18 +60,23 @@
   </head>
   <body class="login-bg">
     <div class="login-card">
-      <div class="logo-float"><img src="images/logo.png" alt="Logo" /></div>
-
-      <h5 class="fw-bold text-center mb-1">GepukGo Staff Portal</h5>
-      <p class="text-center text-muted small mb-4">Admin & Rider</p>
+      <div class="login-header">
+        <img src="images/logo.png?v=warisan" alt="Warisan Cafe" />
+        <h5>Warisan Cafe</h5>
+        <p>Admin &amp; rider login</p>
+      </div>
+      <div class="login-body">
+      <h5 class="fw-bold text-center mb-1">Staff Portal</h5>
+      <p class="text-center text-muted small mb-4">Use the Firebase staff email created for admin or rider</p>
 
       <form id="staffForm">
         <div class="input-group-modern">
           <i class="bi bi-person-badge lead-icon"></i>
           <input
             id="staffId"
+            type="email"
             class="form-control"
-            placeholder="Username"
+            placeholder="Staff email"
             required
           />
         </div>
@@ -89,12 +94,12 @@
           <i class="bi bi-box-arrow-in-right me-1"></i> LOG IN
         </button>
       </form>
+      </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>

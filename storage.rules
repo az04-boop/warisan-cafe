@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function staffRole() {
+      return firestore.get(/databases/(default)/documents/staff/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return signedIn() && staffRole() == "admin";
+    }
+    function isStaff() {
+      return signedIn() && staffRole() in ["admin", "rider"];
+    }
+
+    match /receipts/{orderId}/{fileName} {
+      allow write: if signedIn()
+        && request.resource.size < 6 * 1024 * 1024
+        && request.resource.contentType.matches("image/.*|application/pdf");
+      allow read: if signedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /menu/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType.matches("image/.*");
+    }
+
+    match /proof/{orderId}/{fileName} {
+      allow write: if isStaff()
+        && request.resource.size < 4 * 1024 * 1024
+        && request.resource.contentType.matches("image/.*");
+      allow read: if signedIn();
+    }
+  }
+}

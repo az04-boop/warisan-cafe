@@ -1,11 +1,11 @@
-const CACHE = "gepukgo-v2";
+const CACHE = "warisan-cafe-v5";
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
   "/common.css",
   "/app.js",
   "/firebase-config.js",
-  "/images/logo.png",
+  "/images/logo.png?v=warisan",
   "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css",
   "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js",
   "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css",

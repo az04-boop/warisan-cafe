@@ -7,11 +7,11 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Chat — GepukGO Rider</title>
+    <title>Call customer — Warisan Cafe Rider</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
@@ -27,7 +27,7 @@
         position: fixed;
         top: 0; left: 0; right: 0;
         z-index: 50;
-        background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+        background: var(--header-grad);
         color: #fff;
         display: flex;
         align-items: center;
@@ -206,7 +206,7 @@
         <h6 id="topbarName">Customer</h6>
         <small id="topbarOrder">Loading...</small>
       </div>
-      <div class="online-dot" title="Live chat"></div>
+      <div class="online-dot" title="Call only"></div>
     </div>
 
     <!-- Delivery info card -->
@@ -216,20 +216,17 @@
     </div>
 
     <!-- Chat messages -->
-    <div class="chat-scroll" id="chatScroll"></div>
-
-    <!-- Input bar -->
-    <div class="chat-input-bar">
-      <textarea id="chatInput" rows="1" placeholder="Type a message..."></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendMsg()" type="button">
-        <i class="bi bi-send-fill"></i>
-      </button>
+    <div class="chat-scroll" id="chatScroll">
+      <div class="empty-chat">
+        <i class="bi bi-telephone"></i>
+        <p>Messaging is not available.<br>Call the customer about this delivery.</p>
+        <a id="callCustomerBtn" class="btn btn-brand mt-3" href="#"><i class="bi bi-telephone-fill me-2"></i>Call customer</a>
+      </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
@@ -255,10 +252,12 @@
 
       function renderDeliveryCard(order) {
         const statusColors = {
-          confirmed: "#6c757d", preparing: "#f59e0b", ready: "#0ea5e9",
-          picked_up: "#6366f1", out_for_delivery: "#2563eb", delivered: "#16a34a",
+          awaiting_verification: "#f59e0b",
+          preparing: "#f59e0b",
+          ready: "#0ea5e9",
+          delivered: "#16a34a",
         };
-        const col = statusColors[order.status] || "#6c757d";
+        const col = statusColors[AG.kitchenStatus(order.status)] || "#6c757d";
         document.getElementById("topbarName").textContent = order.customerName || order.email || "Customer";
         document.getElementById("topbarOrder").textContent = "Order " + order.id;
 
@@ -271,11 +270,15 @@
           <div class="card-title"><i class="bi bi-box-seam-fill"></i> Delivery Info</div>
           <div class="info-row">
             <div class="ic"><i class="bi bi-person-fill"></i></div>
-            <div class="val"><small>Customer</small><strong>${order.customerName || order.email || "—"}</strong></div>
+            <div class="val"><small>Customer</small><strong>${order.customerName || order.customer || order.email || "—"}</strong></div>
           </div>
           <div class="info-row">
             <div class="ic"><i class="bi bi-geo-alt-fill"></i></div>
             <div class="val"><small>Delivery Address</small><strong>${order.address || "No address"}</strong></div>
+          </div>
+          <div class="info-row">
+            <div class="ic"><i class="bi bi-truck"></i></div>
+            <div class="val"><small>Delivery</small><strong>${order.deliveryName || "—"}</strong></div>
           </div>
           <div class="info-row">
             <div class="ic"><i class="bi bi-bag-fill"></i></div>
@@ -291,72 +294,21 @@
           </div>`;
       }
 
-      function renderChat(scrollToBottom = false) {
-        const msgs = AG.getChatMessages(orderId);
-        const box = document.getElementById("chatScroll");
-
-        if (!msgs.length) {
-          box.innerHTML = `<div class="empty-chat"><i class="bi bi-chat-dots"></i><p>No messages yet.<br>Send the first message to your customer.</p></div>`;
-          return;
+      function bindCallButton(order) {
+        const btn = document.getElementById("callCustomerBtn");
+        if (!btn) return;
+        const tel = String(order.phone || "").replace(/[^\d+]/g, "");
+        if (tel) {
+          btn.href = "tel:" + tel;
+          btn.innerHTML = '<i class="bi bi-telephone-fill me-2"></i>Call ' + (order.phone || "customer");
+        } else {
+          btn.href = "#";
+          btn.innerHTML = '<i class="bi bi-telephone-x me-2"></i>No customer phone';
         }
-
-        let html = "";
-        let lastDate = "";
-        msgs.forEach((m) => {
-          const mine = m.senderRole === "rider";
-          const d = fmtDate(m.at);
-          if (d !== lastDate) {
-            html += `<div class="day-divider">${d}</div>`;
-            lastDate = d;
-          }
-          html += `
-            <div class="bubble-wrap ${mine ? "mine" : "theirs"}">
-              <div class="bubble">${m.text.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
-              <div class="bubble-meta">${mine ? "You" : (m.senderName || "Customer")} · ${fmtTime(m.at)}</div>
-            </div>`;
-        });
-        box.innerHTML = html;
-
-        if (scrollToBottom || msgs.length !== lastMsgCount) {
-          box.lastElementChild?.scrollIntoView({ behavior: "smooth" });
-        }
-        lastMsgCount = msgs.length;
       }
 
-      window.sendMsg = async function () {
-        const input = document.getElementById("chatInput");
-        const btn   = document.getElementById("sendBtn");
-        const text  = input.value.trim();
-        if (!text) return;
-        btn.disabled = true;
-        try {
-          await AG.sendChatMessage(orderId, text, "rider");
-          input.value = "";
-          input.style.height = "auto";
-          renderChat(true);
-        } catch (err) {
-          AG.toast("Send failed", err.message);
-        } finally {
-          btn.disabled = false;
-          input.focus();
-        }
-      };
-
-      /* Send on Enter (Shift+Enter = new line) */
-      document.getElementById("chatInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          sendMsg();
-        }
-      });
-      /* Auto-grow textarea */
-      document.getElementById("chatInput").addEventListener("input", function () {
-        this.style.height = "auto";
-        this.style.height = Math.min(this.scrollHeight, 100) + "px";
-      });
-
       (async () => {
-        const s = await AG.requireRole(["rider"]);
+        const s = await AG.requireRole(["rider"], ["orders"]);
         if (!s) return;
 
         if (!orderId) {
@@ -382,20 +334,21 @@
         }
 
         renderDeliveryCard(order);
-        renderChat(true);
-        AG.markChatRead(orderId).catch(() => {});
+        bindCallButton(order);
 
-        /* Auto-refresh every 3 seconds */
         setInterval(() => {
           const updated = AG.orders().find((o) => o.id === orderId);
-          if (updated) renderDeliveryCard(updated);
-          renderChat(false);
-          AG.markChatRead(orderId).catch(() => {});
+          if (updated) {
+            renderDeliveryCard(updated);
+            bindCallButton(updated);
+          }
         }, 3000);
         window.addEventListener("ag-data", () => {
           const updated = AG.orders().find((o) => o.id === orderId);
-          if (updated) renderDeliveryCard(updated);
-          renderChat(false);
+          if (updated) {
+            renderDeliveryCard(updated);
+            bindCallButton(updated);
+          }
         });
       })();
     </script>

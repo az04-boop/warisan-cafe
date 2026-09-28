@@ -7,15 +7,13 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Payment</title>
+    <title>QR Payment — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-    <link rel="dns-prefetch" href="https://www.gstatic.com" />
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -25,25 +23,173 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
     />
     <link rel="stylesheet" href="common.css" />
+    <style>
+      .sub-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px;
+        background: var(--header-grad);
+        color: #fff;
+        border-bottom: 0;
+      }
+      .sub-header .back {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .sub-header h5 {
+        margin: 0;
+        font-weight: 800;
+        color: #fff;
+      }
+      .qr-slot {
+        width: 220px;
+        height: 220px;
+        margin: 0 auto 16px;
+        border: 2px dashed #d7b3b4;
+        border-radius: 18px;
+        background: #faf6f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 16px;
+        color: #8a4a4c;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      /* Replace the .qr-slot inner text later with:
+         <img id="paymentQrImage" src="images/qr-payment.png" alt="Payment QR" style="width:100%;height:100%;object-fit:contain;border-radius:12px">
+      */
+      .file-name {
+        font-size: 0.85rem;
+        color: #6b7280;
+        word-break: break-all;
+      }
+    </style>
   </head>
   <body>
-    <div class="mobile-shell">
-      <div class="page-pad" style="padding-top: 60px">
-        <div class="card-soft p-4 text-center">
-          <i
-            class="bi bi-credit-card-2-front"
-            style="font-size: 3.5rem; color: var(--brand)"
-          ></i>
-          <h5 class="fw-bold mt-3">Payment Gateway</h5>
-          <p class="text-muted small mt-2">
-            In this version, orders are confirmed directly from the cart after
-            picking a payment method. Billplz integration is not enabled yet.
+    <div class="mobile-shell" style="padding-bottom: 30px">
+      <div class="sub-header">
+        <a href="cust-cart1.html" class="back"
+          ><i class="bi bi-chevron-left"></i
+        ></a>
+        <h5>QR Payment</h5>
+      </div>
+
+      <div class="page-pad">
+        <div class="card-soft p-4 text-center" id="payPanel">
+          <div class="qr-slot" id="qrPlaceholder">
+            [ QR CODE PLACEHOLDER ]
+          </div>
+          <p class="mb-1 fw-semibold">Scan the QR code above to make payment.</p>
+          <p class="text-muted small mb-3">
+            After completing payment, upload your payment receipt below.
           </p>
-          <a class="btn btn-brand w-100 mt-3" href="cust-cart1.html"
-            ><i class="bi bi-arrow-left me-1"></i> Back to Cart</a
+          <div class="fw-bold mb-3" id="payTotal">Total: RM 0.00</div>
+
+          <label class="form-label fw-semibold text-start d-block"
+            >Payment receipt</label
           >
+          <input
+            class="form-control"
+            type="file"
+            id="receiptFile"
+            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+          />
+          <div class="small text-muted mt-2 text-start">
+            Accepted: JPG or PNG screenshot · Maximum 5 MB · Avoid large PDFs
+          </div>
+          <div class="file-name text-start mt-2" id="selectedName">
+            No file selected
+          </div>
+          <div class="alert alert-danger mt-3 mb-0 d-none text-start" id="errorBox"></div>
+          <div class="alert alert-success mt-3 mb-0 d-none text-start" id="successBox"></div>
+          <button class="btn btn-brand w-100 mt-3 py-2" id="submitBtn" type="button">
+            <i class="bi bi-upload me-1"></i> Submit receipt
+          </button>
         </div>
       </div>
     </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (async () => {
+        const s = await AG.requireRole(["customer"], []);
+        if (!s) return;
+
+        const checkout = AG.get("agPendingCheckout", null);
+        if (!checkout || !checkout.cart || !checkout.cart.length) {
+          AG.toast("Checkout missing", "Return to cart and try again.");
+          location.href = "cust-cart1.html";
+          return;
+        }
+
+        document.getElementById("payTotal").textContent =
+          "Total: RM " + Number(checkout.total || 0).toFixed(2);
+
+        const fileInput = document.getElementById("receiptFile");
+        const selectedName = document.getElementById("selectedName");
+        const errorBox = document.getElementById("errorBox");
+        const successBox = document.getElementById("successBox");
+        const submitBtn = document.getElementById("submitBtn");
+
+        function showError(msg) {
+          errorBox.textContent = msg;
+          errorBox.classList.remove("d-none");
+          successBox.classList.add("d-none");
+        }
+        function showSuccess(msg) {
+          successBox.textContent = msg;
+          successBox.classList.remove("d-none");
+          errorBox.classList.add("d-none");
+        }
+
+        fileInput.addEventListener("change", async () => {
+          const file = fileInput.files[0];
+          selectedName.textContent = file ? file.name : "No file selected";
+          if (!file) return;
+          try {
+            await AG.validateReceiptFile(file);
+            errorBox.classList.add("d-none");
+          } catch (err) {
+            fileInput.value = "";
+            selectedName.textContent = "No file selected";
+            showError(err.message || "Invalid receipt file.");
+          }
+        });
+
+        submitBtn.addEventListener("click", async () => {
+          const file = fileInput.files[0];
+          try {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML =
+              '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+            await AG.submitQrPayment(file);
+            showSuccess(
+              "Payment submitted. Waiting for admin verification.",
+            );
+            submitBtn.innerHTML =
+              '<i class="bi bi-check-circle-fill me-1"></i> Submitted';
+            setTimeout(() => (location.href = "cust-track1.html"), 1200);
+          } catch (err) {
+            showError(err.message || "Could not submit receipt.");
+            submitBtn.disabled = false;
+            submitBtn.innerHTML =
+              '<i class="bi bi-upload me-1"></i> Submit receipt';
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

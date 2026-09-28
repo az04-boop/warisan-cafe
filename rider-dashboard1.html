@@ -7,12 +7,12 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
 
-    <title>Rider Dashboard — GepukGO</title>
+    <title>Rider Dashboard — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
@@ -131,6 +131,12 @@
       <div id="header"></div>
 
       <div class="page-pad">
+        <div class="summary-card mb-3 p-3" style="background:#fff;border-radius:16px;box-shadow:var(--shadow-sm)">
+          <label class="form-label fw-bold mb-1">I am delivering as</label>
+          <p class="small-muted mb-2">Admin adds riders under Rider. Pick your name before you accept a job. The customer can then call your number.</p>
+          <select id="activeRiderSelect" class="form-select"></select>
+        </div>
+
         <div class="rider-stats">
           <div class="rider-stat">
             <div class="num" id="statReady">0</div>
@@ -149,10 +155,6 @@
         <div class="filter-tabs">
           <button class="filter-tab active" data-filter="all">All Jobs</button>
           <button class="filter-tab" data-filter="ready">Ready</button>
-          <button class="filter-tab" data-filter="picked_up">Picked Up</button>
-          <button class="filter-tab" data-filter="out_for_delivery">
-            Delivering
-          </button>
         </div>
 
         <div class="section-title">
@@ -167,19 +169,61 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
       let activeFilter = "all";
 
       (async () => {
-        const s = await AG.requireRole(["rider"]);
+        const s = await AG.requireRole(["rider"], ["orders", "riders"]);
         if (!s) return;
         document.getElementById("header").innerHTML = AG.header(
           "Rider Dashboard",
           "rider",
         );
+        function selectedRider() {
+          const id = document.getElementById("activeRiderSelect").value;
+          return AG.riders().find((r) => r.id === id) || AG.riders()[0] || null;
+        }
+        function renderRiderSelect() {
+          const sel = document.getElementById("activeRiderSelect");
+          const list = AG.riders();
+          const current = AG.get("agActiveRiderId", "");
+          sel.innerHTML = list.length
+            ? list
+                .map(
+                  (r) =>
+                    `<option value="${r.id}">${r.name} · ${r.phone}</option>`,
+                )
+                .join("")
+            : '<option value="">No rider yet — ask admin to add one</option>';
+          if (current && list.some((r) => r.id === current)) sel.value = current;
+        }
+        document.getElementById("activeRiderSelect").addEventListener("change", (e) => {
+          AG.set("agActiveRiderId", e.target.value);
+        });
+        window.acceptJobAndOpen = async function (orderId, alreadyAccepted) {
+          if (alreadyAccepted) {
+            location.href = "rider-status1.html?order=" + orderId;
+            return;
+          }
+          const rider = selectedRider();
+          if (!rider) {
+            AG.toast(
+              "Rider required",
+              "Ask admin to add a rider name and phone first.",
+            );
+            return;
+          }
+          try {
+            await AG.acceptJob(orderId, rider);
+            location.href = "rider-status1.html?order=" + orderId;
+          } catch (err) {
+            AG.toast("Accept failed", err.message);
+          }
+        };
+        renderRiderSelect();
+        window.addEventListener("ag-data", renderRiderSelect);
 
         document.querySelectorAll(".filter-tab").forEach((tab) =>
           tab.addEventListener("click", () => {
@@ -195,20 +239,14 @@
 
         window.renderJobs = function () {
           const all = AG.orders();
-          const active = all.filter((o) =>
-            ["ready", "picked_up", "out_for_delivery"].includes(o.status),
-          );
+          const active = all.filter((o) => AG.kitchenStatus(o.status) === "ready");
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          document.getElementById("statReady").textContent = all.filter(
-            (o) => o.status === "ready",
-          ).length;
-          document.getElementById("statActive").textContent = all.filter((o) =>
-            ["picked_up", "out_for_delivery"].includes(o.status),
-          ).length;
+          document.getElementById("statReady").textContent = active.length;
+          document.getElementById("statActive").textContent = active.length;
           document.getElementById("statDoneToday").textContent = all.filter(
             (o) =>
-              o.status === "delivered" &&
+              AG.kitchenStatus(o.status) === "delivered" &&
               new Date(o.updatedAt || o.createdAt) >= today,
           ).length;
 
@@ -230,19 +268,18 @@
           <strong>Order ${o.id}</strong>
           ${AG.statusBadge(o.status)}
         </div>
-        <div class="job-row"><i class="bi bi-shop"></i> Ayam Gepuk Pagoh</div>
+        <div class="job-row"><i class="bi bi-shop"></i> Warisan Cafe</div>
         <div class="job-row"><i class="bi bi-geo-alt-fill"></i> <strong>${o.address}</strong></div>
         <div class="job-row"><i class="bi bi-bag-fill"></i> ${AG.orderDetails(o)}</div>
         <div class="d-flex justify-content-between align-items-center mt-2">
           <strong class="text-green" style="font-size:1.05rem;">RM ${Number(o.total).toFixed(2)}</strong>
           <div class="d-flex gap-2 align-items-center">
-            <a href="rider-chat1.html?order=${o.id}" class="btn btn-sm btn-outline-secondary position-relative" style="border-radius:10px;padding:6px 10px;">
-              <i class="bi bi-chat-dots-fill"></i>
-              ${AG.unreadChatCount(o.id, "rider") ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem">${AG.unreadChatCount(o.id, "rider") > 9 ? "9+" : AG.unreadChatCount(o.id, "rider")}</span>` : ""}
+            <a href="${o.phone ? "tel:" + String(o.phone).replace(/[^\d+]/g, "") : "rider-chat1.html?order=" + o.id}" class="btn btn-sm btn-outline-secondary" style="border-radius:10px;padding:6px 10px;" title="Call customer">
+              <i class="bi bi-telephone-fill"></i>
             </a>
-            <a href="rider-status1.html?order=${o.id}" class="btn btn-sm ${o.status === "ready" ? "btn-green" : "btn-brand"}">
-              ${o.status === "ready" ? '<i class="bi bi-check-circle me-1"></i>ACCEPT JOB' : '<i class="bi bi-arrow-right-circle me-1"></i>UPDATE'}
-            </a>
+            <button type="button" class="btn btn-sm ${o.status === "ready" && !o.riderPhone ? "btn-green" : "btn-brand"}" onclick="acceptJobAndOpen('${o.id}', ${o.riderPhone ? "true" : "false"})">
+              ${o.status === "ready" && !o.riderPhone ? '<i class="bi bi-check-circle me-1"></i>ACCEPT JOB' : '<i class="bi bi-arrow-right-circle me-1"></i>UPDATE'}
+            </button>
           </div>
         </div>
       </div>`,

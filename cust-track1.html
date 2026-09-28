@@ -7,11 +7,11 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Track Order — Ayam Gepuk Pagoh</title>
+    <title>Track Order — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
@@ -175,24 +175,15 @@
         <div class="chat-card" id="chatCard" style="display: none">
           <div class="chat-head mb-2">
             <h6 class="fw-bold mb-0">
-              <i class="bi bi-chat-dots-fill me-2 text-brand"></i>Chat with
-              Runner
+              <i class="bi bi-telephone-fill me-2 text-brand"></i>Call rider
             </h6>
-            <span id="chatBadge" class="chat-badge" style="display: none"
-              >0</span
-            >
           </div>
-          <div class="chat-list" id="chatList"></div>
-          <div class="input-group">
-            <input
-              class="form-control"
-              id="chatInput"
-              placeholder="Message runner about your delivery..."
-            />
-            <button class="btn btn-brand" id="sendChatBtn" type="button">
-              <i class="bi bi-send"></i>
-            </button>
-          </div>
+          <p class="text-muted small mb-3">
+            The rider accepted this job. Call them about your delivery.
+          </p>
+          <a id="callRiderBtn" class="btn btn-brand w-100 py-2" href="#">
+            <i class="bi bi-telephone-fill me-2"></i>Call rider
+          </a>
         </div>
 
         <div class="text-center mt-4">
@@ -215,12 +206,11 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
       (async () => {
-        const sess = await AG.requireRole(["customer"]);
+        const sess = await AG.requireRole(["customer"], ["orders"]);
         if (!sess) return;
         document.getElementById("header").innerHTML = AG.header(
           "Order Tracking",
@@ -264,7 +254,7 @@
             return;
           }
           document.getElementById("orderNo").textContent = o.id;
-          const current = AG.ORDER_STEPS.indexOf(o.status);
+          const current = AG.ORDER_STEPS.indexOf(AG.kitchenStatus(o.status));
           trackBox.innerHTML = AG.ORDER_STEPS.map((st, i) => {
             const cls =
               i < current ? "done" : i === current ? "current" : "pending";
@@ -290,69 +280,30 @@
           renderChat(o);
         }
 
-        function currentOrder() {
-          const sel = document.getElementById("orderSelect");
-          return AG.orders().find((x) => x.id === sel.value) || myOrders()[0];
-        }
-
-        function renderChat(order) {
+        async function renderChat(order) {
           const card = document.getElementById("chatCard");
-          const list = document.getElementById("chatList");
-          if (!order) {
+          const btn = document.getElementById("callRiderBtn");
+          const assigned = order && String(order.riderPhone || "").trim();
+          if (!assigned) {
             card.style.display = "none";
             return;
           }
           card.style.display = "block";
-          const unread = AG.unreadChatCount(order.id, "customer");
-          const badge = document.getElementById("chatBadge");
-          if (badge) {
-            badge.style.display = unread ? "inline-flex" : "none";
-            badge.textContent = unread > 9 ? "9+" : unread;
+          const saved = String(order.riderPhone || "").trim();
+          const phone = saved || (await AG.getRiderPhone());
+          const tel = String(phone).replace(/[^\d+]/g, "");
+          if (tel) {
+            btn.href = "tel:" + tel;
+            btn.classList.remove("disabled");
+          } else {
+            btn.href = "#";
+            btn.classList.add("disabled");
           }
-          if (unread) {
-            setTimeout(() => AG.markChatRead(order.id).catch(() => {}), 1200);
-          }
-          const msgs = AG.getChatMessages(order.id);
-          list.innerHTML = msgs.length
-            ? msgs
-                .map(
-                  (m) => `
-      <div class="chat-msg ${m.senderRole === "customer" ? "customer" : "rider"}">
-        <strong>${m.senderRole === "customer" ? "You" : "Runner"}</strong><br>${m.text}
-        <small>${m.at ? new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small>
-      </div>
-    `,
-                )
-                .join("")
-            : '<p class="text-muted text-center small mt-4">No messages yet. Chat with your runner here.</p>';
-          list.scrollTop = list.scrollHeight;
         }
-
-        document
-          .getElementById("sendChatBtn")
-          .addEventListener("click", async () => {
-            const order = currentOrder();
-            const input = document.getElementById("chatInput");
-            if (!order) return;
-            try {
-              await AG.sendChatMessage(order.id, input.value, "customer");
-              input.value = "";
-              renderChat(order);
-            } catch (err) {
-              AG.toast("Message failed", err.message);
-            }
-          });
-        document
-          .getElementById("chatInput")
-          .addEventListener("keydown", (e) => {
-            if (e.key === "Enter")
-              document.getElementById("sendChatBtn").click();
-          });
 
         window.refresh = function () {
           renderSelect();
           renderTrack();
-          AG.checkNotifications();
         };
         window.renderTrack = renderTrack;
 

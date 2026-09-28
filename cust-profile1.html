@@ -7,11 +7,11 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
-    <title>Profile — Ayam Gepuk Pagoh</title>
+    <title>Profile — Warisan Cafe</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="dns-prefetch" href="https://www.gstatic.com" />
@@ -27,11 +27,7 @@
     <link rel="stylesheet" href="common.css" />
     <style>
       .profile-hero {
-        background: linear-gradient(
-          135deg,
-          var(--brand) 0%,
-          var(--brand-dark) 100%
-        );
+        background: var(--header-grad);
         color: #fff;
         padding: 28px 20px 70px;
         text-align: center;
@@ -50,7 +46,7 @@
       }
       .avatar-wrap i {
         font-size: 4rem;
-        color: var(--brand);
+        color: var(--green);
       }
       .profile-hero h5 {
         font-weight: 800;
@@ -209,31 +205,18 @@
         </div>
 
         <div class="row g-2 mt-3">
-          <div class="col-4">
+          <div class="col-6">
             <div class="stat-mini">
               <div class="num" id="statTotalOrders">0</div>
               <div class="lbl">Orders</div>
             </div>
           </div>
-          <div class="col-4">
+          <div class="col-6">
             <div class="stat-mini">
               <div class="num" id="statDelivered">0</div>
               <div class="lbl">Delivered</div>
             </div>
           </div>
-          <div class="col-4">
-            <div class="stat-mini">
-              <div class="num" id="statSpent">RM 0</div>
-              <div class="lbl">Total Spent</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-card">
-          <h6 class="fw-bold mb-2">
-            <i class="bi bi-heart-fill text-danger me-2"></i>Favourite Menu
-          </h6>
-          <div id="favBox"></div>
         </div>
 
         <div class="section-card">
@@ -273,25 +256,15 @@
               class="form-control mb-3"
               placeholder="Your name"
             />
-            <label class="form-label fw-semibold">Phone</label>
+            <label class="form-label fw-semibold">Phone <span class="text-danger">*</span></label>
             <input
               type="text"
               id="editPhone"
               class="form-control mb-3"
               placeholder="01X-XXXXXXX"
+              required
             />
-            <label class="form-label fw-semibold">Delivery Area</label>
-            <select id="editAddressArea" class="form-select mb-2">
-              <option value="">— Select your area —</option>
-              <option value="Kolej Kediaman UTHM">
-                🏫 Kolej Kediaman UTHM (RM 0.50)
-              </option>
-              <option value="UIA / IIUM">🎓 UIA / IIUM (RM 0.50)</option>
-              <option value="Pagoh Jaya">🏘️ Pagoh Jaya (RM 1.00)</option>
-            </select>
-            <label class="form-label fw-semibold"
-              >Block / Room / Road Name</label
-            >
+            <label class="form-label fw-semibold">Delivery address <span class="text-danger">*</span></label>
             <input
               type="text"
               id="editAddressDetail"
@@ -322,7 +295,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script
@@ -331,6 +303,7 @@
     ></script>
     <script>
       let currentProfile = null;
+      let historyOrders = [];
 
       function renderProfile(p) {
         currentProfile = p;
@@ -341,33 +314,19 @@
           p.address || "No address saved";
         document.getElementById("editName").value = p.name || "";
         document.getElementById("editPhone").value = p.phone || "";
-        document.getElementById("editAddressArea").value = p.addressArea || "";
         document.getElementById("editAddressDetail").value =
-          p.addressDetail || "";
+          p.addressDetail || p.address || "";
         renderProfileExtras();
       }
 
       function renderProfileExtras() {
-        const fav = AG.favouriteMenus(currentProfile);
-        const favBox = document.getElementById("favBox");
-        favBox.innerHTML = fav.length
-          ? fav
-              .slice(0, 5)
-              .map(
-                (f, i) =>
-                  `<div class="fav-row"><span><span class="fav-rank">${i + 1}</span>${f.name}</span><strong class="text-brand">${f.count}×</strong></div>`,
-              )
-              .join("")
-          : '<p class="text-muted small mb-0 text-center py-3">No favourites yet — order something delicious!</p>';
-
-        const orders = AG.getCustomerOrders(currentProfile);
+        const orders = historyOrders.length
+          ? historyOrders
+          : AG.getCustomerOrders(currentProfile);
         document.getElementById("statTotalOrders").textContent = orders.length;
         document.getElementById("statDelivered").textContent = orders.filter(
           (o) => o.status === "delivered",
         ).length;
-        document.getElementById("statSpent").textContent =
-          "RM " +
-          orders.reduce((a, o) => a + Number(o.total || 0), 0).toFixed(0);
 
         const hist = document.getElementById("historyBox");
         hist.innerHTML = orders.length
@@ -387,25 +346,61 @@
       }
 
       (async () => {
-        const s = await AG.requireRole(["customer"]);
+        const s = await AG.requireRole(["customer"], []);
         if (!s) return;
-        document.getElementById("header")?.remove(); // no header — using hero instead
         const profile = await AG.getCustomerProfile();
         renderProfile(profile);
-        window.addEventListener("ag-data", renderProfileExtras);
+        AG.fetchCustomerOrderHistory(12)
+          .then((list) => {
+            historyOrders = list || [];
+            renderProfileExtras();
+          })
+          .catch(() => renderProfileExtras());
+        if (
+          new URLSearchParams(location.search).get("need") === "contact" ||
+          AG.needsCustomerContact(profile)
+        ) {
+          AG.toast(
+            "Details required",
+            "Please add your phone number and delivery address.",
+          );
+          const openEdit = () => {
+            const modalEl = document.getElementById("editProfileModal");
+            if (window.bootstrap && modalEl) {
+              bootstrap.Modal.getOrCreateInstance(modalEl).show();
+              return true;
+            }
+            return false;
+          };
+          if (!openEdit()) {
+            const wait = setInterval(() => {
+              if (openEdit()) clearInterval(wait);
+            }, 80);
+            setTimeout(() => clearInterval(wait), 2500);
+          }
+        }
       })();
 
       document
         .getElementById("saveProfileBtn")
         .addEventListener("click", async () => {
+          const phone = document.getElementById("editPhone").value.trim();
+          const address = document
+            .getElementById("editAddressDetail")
+            .value.trim();
+          if (!phone || !address) {
+            AG.toast(
+              "Details required",
+              "Please add your phone number and delivery address.",
+            );
+            return;
+          }
           try {
             const updated = await AG.updateCustomerProfile({
               name: document.getElementById("editName").value.trim(),
-              phone: document.getElementById("editPhone").value.trim(),
-              addressArea: document.getElementById("editAddressArea").value,
-              addressDetail: document
-                .getElementById("editAddressDetail")
-                .value.trim(),
+              phone,
+              addressArea: "",
+              addressDetail: address,
             });
             renderProfile(updated);
             bootstrap.Modal.getInstance(

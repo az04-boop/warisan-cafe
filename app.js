@@ -6,34 +6,47 @@ if ("serviceWorker" in navigator) {
 
 const AG = (() => {
   const ORDER_STEPS = [
-    "confirmed",
+    "awaiting_verification",
     "preparing",
     "ready",
-    "picked_up",
-    "out_for_delivery",
     "delivered",
   ];
   const STEP_LABELS = {
-    confirmed: "Order Confirmed",
-    preparing: "Preparing Food",
-    ready: "Ready for Pickup",
-    picked_up: "Picked Up by Rider",
-    out_for_delivery: "Out for Delivery",
+    awaiting_verification: "Awaiting Verification",
+    preparing: "Preparing",
+    ready: "Ready",
     delivered: "Delivered",
   };
+  const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
+  const RECEIPT_EXT_TO_KIND = {
+    jpg: "jpeg",
+    jpeg: "jpeg",
+    png: "png",
+    pdf: "pdf",
+  };
+  const RECEIPT_MIME_TO_KIND = {
+    "image/jpeg": "jpeg",
+    "image/jpg": "jpeg",
+    "image/png": "png",
+    "application/pdf": "pdf",
+  };
+  const BLOCKED_PAYMENT_STATUSES = new Set([
+    "paid",
+    "verified",
+    "confirmed",
+  ]);
 
   const STAFF = {
     admin: {
       id: "ADMIN001",
-      password: "admin123",
       role: "admin",
-      name: "Admin Ayam Gepuk",
+      name: "Admin Warisan Cafe",
     },
     rider: {
       id: "RIDER001",
-      password: "rider123",
       role: "rider",
-      name: "Ahmad Rider",
+      name: "Rider",
+      phone: "",
     },
   };
 
@@ -41,18 +54,43 @@ const AG = (() => {
 
   const DEFAULT_BATCHES = [];
 
+  const DELIVERY_OPTIONS = [
+    {
+      id: "normal",
+      name: "Normal Delivery",
+      price: 1,
+      desc: "Standard delivery",
+    },
+    {
+      id: "fast",
+      name: "Fast Delivery",
+      price: 2,
+      desc: "Priority, faster drop-off",
+    },
+    {
+      id: "door",
+      name: "Door to Door Delivery",
+      price: 3,
+      desc: "Rider brings the order to your door",
+    },
+  ];
+
   let app = null,
     auth = null,
     db = null,
     storage = null;
-  let ready = false,
+  let appReady = false,
     useFirebase = false;
+  const subscribed = new Set();
+  const ADMIN_DATA = ["menu", "batches", "orders", "riders"];
+  const RIDER_DATA = ["orders", "riders"];
   const cache = {
     menu: [],
     batches: [],
     orders: [],
     notifications: [],
     chatMessages: [],
+    riders: [],
   };
   const unsubscribers = [];
 
@@ -106,7 +144,7 @@ const AG = (() => {
     return localGet("agSession", null);
   }
 
-  async function logout() {
+  async function logout(options) {
     try {
       await init();
       if (useFirebase && auth && auth.currentUser) await auth.signOut();
@@ -114,28 +152,114 @@ const AG = (() => {
       console.warn("Logout warning:", e);
     }
     localStorage.removeItem("agSession");
-    window.location.href = "login1.html";
+    if (!(options && options.stay)) window.location.href = "login1.html";
   }
 
-  async function requireRole(allowedRoles) {
+  function waitForAuth() {
+    if (!auth) return Promise.resolve(null);
+    if (auth.currentUser) return Promise.resolve(auth.currentUser);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(auth.currentUser), 2200);
+      const unsub = auth.onAuthStateChanged((user) => {
+        clearTimeout(timer);
+        unsub();
+        resolve(user);
+      });
+    });
+  }
+
+  async function restoreSessionFromAuth() {
+    if (!useFirebase || !auth) return session();
+    const user = await waitForAuth();
+    if (!user) {
+      localStorage.removeItem("agSession");
+      return null;
+    }
+    let s = session();
+    if (s && s.uid && s.uid !== user.uid) {
+      localStorage.removeItem("agSession");
+      s = null;
+    }
+    if (s && s.role) return s;
+    try {
+      const staffSnap = await db.collection("staff").doc(user.uid).get();
+      if (staffSnap.exists) {
+        const account = staffSnap.data() || {};
+        s = {
+          role: account.role,
+          uid: user.uid,
+          id: staffSnap.id,
+          name: account.name || user.displayName || "Staff",
+          email: user.email || account.email || "",
+          phone: account.phone || "",
+        };
+        localSet("agSession", s);
+        return s;
+      }
+    } catch (e) {
+      console.warn("staff session restore skipped", e);
+    }
+    try {
+      const custSnap = await db.collection("customers").doc(user.uid).get();
+      const profile = custSnap.exists
+        ? custSnap.data()
+        : {
+            name: user.displayName || "Customer",
+            email: user.email,
+            phone: "",
+            address: "",
+          };
+      s = {
+        ...profile,
+        uid: user.uid,
+        email: user.email,
+        role: "customer",
+      };
+      localSet("agSession", s);
+      return s;
+    } catch (e) {
+      console.warn("customer session restore skipped", e);
+    }
+    return session();
+  }
+
+  async function requireRole(allowedRoles, collections) {
     await init();
-    const s = session();
+    let s = useFirebase ? await restoreSessionFromAuth() : session();
     const allowed = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
     const loginPage =
       allowed.includes("admin") || allowed.includes("rider")
         ? "staff-login1.html"
         : "login1.html";
+    if (useFirebase && auth && !(await waitForAuth())) {
+      localStorage.removeItem("agSession");
+      window.location.href = loginPage;
+      return null;
+    }
     if (!s || !s.role) {
       window.location.href = loginPage;
       return null;
     }
     if (!allowed.includes(s.role)) {
+      const wantsCustomer =
+        allowed.includes("customer") && !allowed.includes("admin");
+      if (wantsCustomer && (s.role === "admin" || s.role === "rider")) {
+        window.location.href = "login1.html";
+        return null;
+      }
       if (s.role === "admin") window.location.href = "admin-dashboard1.html";
       else if (s.role === "rider")
         window.location.href = "rider-dashboard1.html";
       else window.location.href = "cust-menu1.html";
       return null;
     }
+    let needed = collections;
+    if (needed === undefined) {
+      if (s.role === "admin") needed = ADMIN_DATA;
+      else if (s.role === "rider") needed = RIDER_DATA;
+      else needed = [];
+    }
+    if (needed.length) await init(needed);
     return s;
   }
 
@@ -156,27 +280,7 @@ const AG = (() => {
         : hour < 18
           ? "Good Afternoon"
           : "Good Evening";
-    const unread = notifications().filter((n) => {
-      if (
-        Array.isArray(n.readBy) &&
-        n.readBy.includes(s.uid || s.id || s.email)
-      )
-        return false;
-      if (n.read && !Array.isArray(n.readBy)) return false;
-      if (n.role !== s.role) return false;
-      if (s.role === "customer")
-        return (
-          (!n.customerUid && !n.email) ||
-          n.customerUid === s.uid ||
-          n.email === s.email
-        );
-      return true;
-    }).length;
-    const bellBadge =
-      unread > 0
-        ? `<span class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-warning" style="font-size:.6rem;padding:3px 5px;">${unread > 9 ? "9+" : unread}</span>`
-        : "";
-    return `<div class="app-header"><div class="header-row"><a class="brand" href="${home}"><img src="images/logo.png" alt="logo"><div class="brand-text"><span class="greeting">${greet}, ${firstName}</span><span class="brand-name">${title}</span></div></a><div class="header-actions"><span class="role-chip">${displayRole}</span><button class="icon-btn" type="button" title="Notifications" onclick="AG.checkNotifications()"><i class="bi bi-bell-fill"></i>${bellBadge}</button><button class="icon-btn" type="button" title="Logout" onclick="AG.logout()"><i class="bi bi-box-arrow-right"></i></button></div></div></div>`;
+    return `<div class="app-header"><div class="header-row"><a class="brand" href="${home}"><img src="images/logo.png?v=warisan" alt="Warisan Cafe"><div class="brand-text"><span class="greeting">${greet}, ${firstName}</span><span class="brand-name">${title}</span></div></a><div class="header-actions"><span class="role-chip">${displayRole}</span><button class="icon-btn" type="button" title="Logout" onclick="AG.logout()"><i class="bi bi-box-arrow-right"></i></button></div></div></div>`;
   }
 
   async function initLocal() {
@@ -187,19 +291,49 @@ const AG = (() => {
     if (!localStorage.getItem("agNotifications"))
       localSet("agNotifications", []);
     if (!localStorage.getItem("agChatMessages")) localSet("agChatMessages", []);
+    if (!localStorage.getItem("agRiders")) localSet("agRiders", []);
     cache.menu = localGet("agMenu", DEFAULT_MENU);
     cache.batches = localGet("agBatches", DEFAULT_BATCHES);
     cache.orders = localGet("agOrders", []);
     cache.notifications = localGet("agNotifications", []);
     cache.chatMessages = localGet("agChatMessages", []);
+    cache.riders = localGet("agRiders", []);
   }
 
-  async function init() {
-    if (ready) return;
+  function applySnapshot(name, arr) {
+    if (name === "menu") {
+      cache.menu = arr
+        .map(normalizeMenuItem)
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    } else if (name === "batches") {
+      cache.batches = arr.sort((a, b) =>
+        (a.start || "").localeCompare(b.start || ""),
+      );
+    } else if (name === "orders") {
+      cache.orders = arr.sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+      );
+    } else if (name === "notifications") {
+      cache.notifications = arr.sort(
+        (a, b) => new Date(b.at || 0) - new Date(a.at || 0),
+      );
+    } else if (name === "chatMessages") {
+      cache.chatMessages = arr.sort(
+        (a, b) => new Date(a.at || 0) - new Date(b.at || 0),
+      );
+    } else if (name === "riders") {
+      cache.riders = arr.sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || "")),
+      );
+    }
+  }
+
+  async function bootFirebase() {
+    if (appReady) return;
     useFirebase = firebaseEnabled();
     if (!useFirebase) {
       await initLocal();
-      ready = true;
+      appReady = true;
       return;
     }
     try {
@@ -209,79 +343,140 @@ const AG = (() => {
       auth = firebase.auth();
       db = firebase.firestore();
       storage = firebase.storage ? firebase.storage() : null;
-      await seedDefaultsIfNeeded();
-      let coreReady = 0;
-      let resolveCore;
-      const corePromise = new Promise((r) => (resolveCore = r));
-      function onCoreFirst() { if (++coreReady >= 2) resolveCore(); }
-
-      listenCollection("menu", (arr) => {
-        cache.menu = arr
-          .map(normalizeMenuItem)
-          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-      });
-      listenCollection("batches", (arr) => {
-        cache.batches = arr.sort((a, b) =>
-          (a.start || "").localeCompare(b.start || ""),
-        );
-      }, onCoreFirst);
-      listenCollection("orders", (arr) => {
-        cache.orders = arr.sort(
-          (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
-        );
-      }, onCoreFirst);
-      listenCollection("notifications", (arr) => {
-        cache.notifications = arr.sort(
-          (a, b) => new Date(b.at || 0) - new Date(a.at || 0),
-        );
-      });
-      listenCollection("chatMessages", (arr) => {
-        cache.chatMessages = arr.sort(
-          (a, b) => new Date(a.at || 0) - new Date(b.at || 0),
-        );
-      });
-      await Promise.race([corePromise, new Promise((r) => setTimeout(r, 200))]);
-      ready = true;
+      appReady = true;
     } catch (err) {
       console.error("Firebase init failed:", err);
       toast("Firebase init failed", err.message);
       await initLocal();
       useFirebase = false;
-      ready = true;
+      appReady = true;
     }
   }
 
-  function listenCollection(name, cb, onFirst) {
-    let firstFired = false;
-    const unsub = db.collection(name).onSnapshot(
-      (snap) => {
-        const arr = [];
-        snap.forEach((doc) => arr.push({ id: doc.id, ...doc.data() }));
-        cb(arr);
-        window.dispatchEvent(new Event("ag-data"));
-        if (!firstFired) { firstFired = true; if (onFirst) onFirst(); }
-      },
-      (err) => {
-        console.error(`Firebase read error: ${name}`, err);
-        toast("Firebase read error", err.message);
-      },
-    );
-    unsubscribers.push(unsub);
+  const ORDER_LIST_LIMIT = 250;
+  const CUSTOMER_ORDER_LIMIT = 20;
+
+  function slimOrder(raw) {
+    const o = { ...(raw || {}) };
+    if (o.receiptDataUrl) {
+      o.hasReceipt = true;
+      o.receiptDataUrl = "";
+    }
+    if (typeof o.proof === "string" && o.proof.length > 180) {
+      o.hasProof = true;
+      o.proof = "";
+    }
+    return o;
+  }
+
+  function ordersRefForSession() {
+    const s = session();
+    let ref = db.collection("orders");
+    if (s && s.role === "customer") {
+      if (s.uid) ref = ref.where("customerUid", "==", s.uid);
+      else if (s.email) ref = ref.where("email", "==", s.email);
+      return ref.limit(CUSTOMER_ORDER_LIMIT);
+    }
+    return ref.orderBy("createdAt", "desc").limit(ORDER_LIST_LIMIT);
+  }
+
+  function listenOrders() {
+    if (!db || subscribed.has("orders")) return Promise.resolve();
+    subscribed.add("orders");
+    return new Promise((resolve) => {
+      let first = true;
+      const finish = () => {
+        if (!first) return;
+        first = false;
+        resolve();
+      };
+      let usedFallback = false;
+      const attach = (ref, isFallback) => {
+        const unsub = ref.onSnapshot(
+          (snap) => {
+            try {
+              const arr = [];
+              snap.forEach((doc) =>
+                arr.push(slimOrder({ id: doc.id, ...doc.data() })),
+              );
+              applySnapshot("orders", arr);
+              window.dispatchEvent(new Event("ag-data"));
+            } catch (err) {
+              console.error("orders snapshot", err);
+            }
+            finish();
+          },
+          (err) => {
+            console.warn("orders listen failed", err && err.message);
+            if (!usedFallback && !isFallback) {
+              usedFallback = true;
+              attach(db.collection("orders").limit(ORDER_LIST_LIMIT), true);
+              return;
+            }
+            finish();
+          },
+        );
+        unsubscribers.push(unsub);
+      };
+      try {
+        attach(ordersRefForSession(), false);
+      } catch (err) {
+        attach(db.collection("orders").limit(ORDER_LIST_LIMIT), true);
+      }
+    });
+  }
+
+  function listenCollection(name) {
+    if (name === "orders") return listenOrders();
+    if (!db || subscribed.has(name)) return Promise.resolve();
+    subscribed.add(name);
+    return new Promise((resolve) => {
+      let first = true;
+      const finish = () => {
+        if (!first) return;
+        first = false;
+        resolve();
+      };
+      const unsub = db.collection(name).onSnapshot(
+        (snap) => {
+          try {
+            const arr = [];
+            snap.forEach((doc) => arr.push({ id: doc.id, ...doc.data() }));
+            applySnapshot(name, arr);
+            window.dispatchEvent(new Event("ag-data"));
+          } catch (err) {
+            console.error(`${name} snapshot`, err);
+          }
+          finish();
+        },
+        (err) => {
+          console.warn(`Firebase read skipped: ${name}`, err && err.message);
+          finish();
+        },
+      );
+      unsubscribers.push(unsub);
+    });
+  }
+
+  async function subscribeCollections(names) {
+    await bootFirebase();
+    if (!useFirebase || !db) return;
+    const needed = [...new Set(names)].filter(Boolean);
+    await Promise.race([
+      Promise.all(needed.map((name) => listenCollection(name))),
+      new Promise((r) => setTimeout(r, 400)),
+    ]);
+  }
+
+  async function init(collections) {
+    await bootFirebase();
+    if (Array.isArray(collections) && collections.length) {
+      await subscribeCollections(collections);
+    }
   }
 
   async function seedDefaultsIfNeeded() {
-    // No default menu and batch.
-    // Admin must create menu and batch manually from admin dashboard.
-
-    await db
-      .collection("staff")
-      .doc("ADMIN001")
-      .set(STAFF.admin, { merge: true });
-
-    await db
-      .collection("staff")
-      .doc("RIDER001")
-      .set(STAFF.rider, { merge: true });
+    return;
   }
 
   function normalizeMenuItem(item) {
@@ -315,6 +510,71 @@ const AG = (() => {
         { name: "Option", options: [{ name: "Normal", price: 0 }] },
       ];
     return m;
+  }
+
+  function customerContact(s = session()) {
+    const p = s || {};
+    return {
+      phone: String(p.phone || "").trim(),
+      address: String(p.addressDetail || p.address || "").trim(),
+    };
+  }
+
+  function assertCustomerContact(s = session(), extra = {}) {
+    const current = customerContact(s);
+    const phone =
+      extra.phone !== undefined ? String(extra.phone || "").trim() : current.phone;
+    const address =
+      extra.address !== undefined
+        ? String(extra.address || "").trim()
+        : current.address;
+    const missing = [];
+    if (!phone) missing.push("phone number");
+    if (!address) missing.push("delivery address");
+    if (missing.length) {
+      throw new Error("Please add your " + missing.join(" and ") + ".");
+    }
+    return { phone, address };
+  }
+
+  function needsCustomerContact(s = session()) {
+    try {
+      assertCustomerContact(s);
+      return false;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  async function getRiderPhone() {
+    await init();
+    const assigned = String(localGet("agRiderPhone", "") || "").trim();
+    const fromList = riders()[0] && riders()[0].phone;
+    const fallback = String(fromList || assigned || STAFF.rider.phone || "").trim();
+    if (!useFirebase || !db) return fallback;
+    try {
+      const list = riders();
+      if (list.length) return String(list[0].phone || "").trim();
+      const doc = await db.collection("staff").doc("RIDER001").get();
+      return String((doc.exists && doc.data().phone) || fallback).trim();
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  async function saveRiderPhone(phone) {
+    const clean = String(phone || "").trim();
+    if (!clean) throw new Error("Please add the rider phone number.");
+    await init();
+    localSet("agRiderPhone", clean);
+    STAFF.rider.phone = clean;
+    if (useFirebase && db) {
+      await db
+        .collection("staff")
+        .doc("RIDER001")
+        .set({ phone: clean, id: "RIDER001", role: "rider" }, { merge: true });
+    }
+    return clean;
   }
 
   async function getCustomerProfile() {
@@ -352,13 +612,15 @@ const AG = (() => {
     const address = addressArea
       ? (addressDetail ? addressDetail + ", " + addressArea : addressArea)
       : (data.address || s.address || "");
+    const phone = data.phone !== undefined ? data.phone : s.phone;
+    assertCustomerContact(s, { phone, address: addressDetail || address });
     const updated = {
       ...s,
       name: data.name || s.name || "Customer",
-      phone: data.phone || "",
-      address,
+      phone: String(phone || "").trim(),
+      address: String(address || "").trim(),
       addressArea,
-      addressDetail,
+      addressDetail: String(addressDetail || address || "").trim(),
       role: "customer",
       updatedAt: nowISO(),
     };
@@ -375,6 +637,9 @@ const AG = (() => {
 
   async function registerCustomer(data) {
     await init();
+    const phone = String(data.phone || "").trim();
+    const address = String(data.address || data.addressDetail || "").trim();
+    assertCustomerContact({}, { phone, address });
     if (useFirebase) {
       const cred = await auth.createUserWithEmailAndPassword(
         data.email,
@@ -385,8 +650,9 @@ const AG = (() => {
         uid: cred.user.uid,
         name: data.name,
         email: data.email,
-        phone: data.phone || "",
-        address: data.address || "",
+        phone,
+        address,
+        addressDetail: address,
         role: "customer",
         createdAt: nowISO(),
       };
@@ -406,8 +672,9 @@ const AG = (() => {
       role: "customer",
       name: data.name,
       email: data.email,
-      address: data.address || "",
-      phone: data.phone || "",
+      address,
+      addressDetail: address,
+      phone,
     };
     localSet("agSession", safe);
     return safe;
@@ -417,6 +684,11 @@ const AG = (() => {
     await init();
     if (useFirebase) {
       const cred = await auth.signInWithEmailAndPassword(email, password);
+      const staffHit = await staffRecordForUser(cred.user);
+      if (staffHit) {
+        await auth.signOut();
+        throw new Error("This email is a staff account. Use Staff login.");
+      }
       const doc = await db.collection("customers").doc(cred.user.uid).get();
       const profile = doc.exists
         ? doc.data()
@@ -461,6 +733,11 @@ const AG = (() => {
     const provider = new firebase.auth.GoogleAuthProvider();
     const cred = await auth.signInWithPopup(provider);
     const user = cred.user;
+    const staffHit = await staffRecordForUser(user);
+    if (staffHit) {
+      await auth.signOut();
+      throw new Error("This email is a staff account. Use Staff login.");
+    }
     const ref = db.collection("customers").doc(user.uid);
     const doc = await ref.get();
     const profile = doc.exists
@@ -487,39 +764,49 @@ const AG = (() => {
     return profile;
   }
 
-  async function loginStaff(idVal, password) {
+  async function staffRecordForUser(user) {
+    if (!user || !db) return null;
+    const byUid = await db.collection("staff").doc(user.uid).get();
+    if (byUid.exists) return { id: byUid.id, ...(byUid.data() || {}) };
+    const email = String(user.email || "").trim();
+    if (!email) return null;
+    const q = await db
+      .collection("staff")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+    if (q.empty) return null;
+    const doc = q.docs[0];
+    return { id: doc.id, ...(doc.data() || {}) };
+  }
+
+  async function loginStaff(emailVal, password) {
     await init();
-    const staffId = String(idVal || "")
-      .trim()
-      .toUpperCase();
+    const email = String(emailVal || "").trim();
     const staffPassword = String(password || "").trim();
-    if (staffId === "ADMIN001" && staffPassword === "admin123") {
-      const s = { role: "admin", id: "ADMIN001", name: "Admin Ayam Gepuk" };
-      localSet("agSession", s);
-      return "admin";
+    if (!email || !staffPassword) {
+      throw new Error("Enter staff email and password.");
     }
-    if (staffId === "RIDER001" && staffPassword === "rider123") {
-      const s = { role: "rider", id: "RIDER001", name: "Ahmad Rider" };
-      localSet("agSession", s);
-      return "rider";
+    if (!useFirebase || !auth) {
+      throw new Error("Staff login requires Firebase Authentication.");
     }
-    if (useFirebase && db) {
-      try {
-        const doc = await db.collection("staff").doc(staffId).get();
-        if (doc.exists && doc.data().password === staffPassword) {
-          const account = { id: staffId, ...doc.data() };
-          localSet("agSession", {
-            role: account.role,
-            id: account.id,
-            name: account.name || account.id,
-          });
-          return account.role;
-        }
-      } catch (e) {
-        console.warn("Firestore staff login skipped:", e);
-      }
+    const cred = await auth.signInWithEmailAndPassword(email, staffPassword);
+    const account = await staffRecordForUser(cred.user);
+    if (!account || (account.role !== "admin" && account.role !== "rider")) {
+      await auth.signOut();
+      throw new Error(
+        "This account is not registered as staff. Create Authentication user, then a staff document with that user's UID.",
+      );
     }
-    throw new Error("Invalid staff ID or password.");
+    localSet("agSession", {
+      role: account.role,
+      uid: cred.user.uid,
+      id: account.id,
+      name: account.name || cred.user.displayName || "Staff",
+      email: cred.user.email || account.email || email,
+      phone: account.phone || "",
+    });
+    return account.role;
   }
 
   function menu() {
@@ -527,11 +814,79 @@ const AG = (() => {
       cache.menu.length ? cache.menu : localGet("agMenu", DEFAULT_MENU)
     ).map(normalizeMenuItem);
   }
+  function riders() {
+    return cache.riders.length ? cache.riders : localGet("agRiders", []);
+  }
+
+  async function saveRider(rider) {
+    await init();
+    const name = String(rider.name || "").trim();
+    const phone = String(rider.phone || "").trim();
+    if (!name || !phone) {
+      throw new Error("Please add the rider name and phone number.");
+    }
+    const item = {
+      id: rider.id || makeId("RDR"),
+      name,
+      phone,
+      updatedAt: nowISO(),
+      createdAt: rider.createdAt || nowISO(),
+    };
+    if (useFirebase && db) {
+      await db.collection("riders").doc(item.id).set(item, { merge: true });
+    }
+    const all = riders().filter((r) => r.id !== item.id);
+    all.push(item);
+    cache.riders = all.sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || "")),
+    );
+    localSet("agRiders", cache.riders);
+    window.dispatchEvent(new Event("ag-data"));
+    return item;
+  }
+
+  async function deleteRider(riderId) {
+    await init();
+    if (!riderId) return;
+    if (useFirebase && db) {
+      await db.collection("riders").doc(riderId).delete();
+    }
+    cache.riders = riders().filter((r) => r.id !== riderId);
+    localSet("agRiders", cache.riders);
+    window.dispatchEvent(new Event("ag-data"));
+  }
+
+  async function acceptJob(orderId, rider) {
+    await init();
+    const name = String((rider && rider.name) || "").trim();
+    const phone = String((rider && rider.phone) || "").trim();
+    if (!name || !phone) {
+      throw new Error("Choose a rider with a name and phone number first.");
+    }
+    const fields = {
+      riderId: rider.id || "",
+      riderName: name,
+      riderPhone: phone,
+      riderAcceptedAt: nowISO(),
+      updatedAt: nowISO(),
+    };
+    if (useFirebase && db) {
+      await db.collection("orders").doc(orderId).set(fields, { merge: true });
+    }
+    cache.orders = orders().map((o) =>
+      o.id === orderId ? { ...o, ...fields } : o,
+    );
+    localSet("agOrders", cache.orders);
+    window.dispatchEvent(new Event("ag-data"));
+    return cache.orders.find((o) => o.id === orderId);
+  }
+
   function batches() {
     return cache.batches.length
       ? cache.batches
       : localGet("agBatches", DEFAULT_BATCHES);
   }
+
   function orders() {
     return cache.orders.length ? cache.orders : localGet("agOrders", []);
   }
@@ -651,13 +1006,6 @@ const AG = (() => {
       localSet("agChatMessages", arr);
     }
     const targetRole = role === "customer" ? "rider" : "customer";
-    await addNotification(
-      orderId,
-      role === "customer" ? "Customer message" : "Runner message",
-      cleanText,
-      targetRole,
-      order,
-    );
     return msg;
   }
 
@@ -787,21 +1135,41 @@ const AG = (() => {
       .map((i) => (i.note ? `${i.quantity}x ${i.name}: ${i.note}` : ""))
       .filter(Boolean)
       .join(" | ");
+    const requestedPay = String(extra.paymentStatus || "").toLowerCase();
+    if (BLOCKED_PAYMENT_STATUSES.has(requestedPay)) {
+      throw new Error("Customers cannot mark a payment as paid or verified.");
+    }
+    const contact = assertCustomerContact(s);
+    if (useFirebase) {
+      if (!auth || !auth.currentUser) {
+        throw new Error("Please sign in again before placing an order.");
+      }
+    }
+    const receiptId = extra.receiptId || makeId("RCP");
     const order = {
       id: makeId("ORD"),
       customer: s.name || "Guest",
-      customerUid: s.uid || "",
+      customerUid: useFirebase && auth.currentUser ? auth.currentUser.uid : s.uid || "",
       email: s.email || "",
-      phone: s.phone || "",
-      address: s.address || "Kolej Kediaman Hub Pagoh",
+      phone: contact.phone,
+      address: contact.address,
       items: cart,
       total,
-      payment,
-      paymentStatus: extra.paymentStatus || "paid",
-      paymentProvider: extra.paymentProvider || "Internal Checkout",
-      paymentRef: extra.paymentRef || "",
+      payment: payment || "QR",
+      paymentStatus: "awaiting_verification",
+      paymentProvider: "QR",
+      paymentRef: null,
+      receiptId,
+      receiptFileName: extra.receiptFileName || "",
+      receiptContentType: extra.receiptContentType || "",
+      receiptUploadedAt: extra.receiptUploadedAt || nowISO(),
+      receiptPath: extra.receiptPath || "",
+      receiptUrl: extra.receiptUrl || "",
+      receiptDataUrl: "",
       batchId,
-      status: "confirmed",
+      deliveryType: extra.deliveryType || "",
+      deliveryName: extra.deliveryName || "",
+      status: "awaiting_verification",
       riderId: "RIDER001",
       proof: null,
       proofUrl: null,
@@ -809,12 +1177,27 @@ const AG = (() => {
       orderNotes,
       createdAt: nowISO(),
       updatedAt: nowISO(),
-      history: [{ status: "confirmed", at: nowISO() }],
+      history: [{ status: "awaiting_verification", at: nowISO() }],
     };
     if (useFirebase) {
       await db.collection("orders").doc(order.id).set(order);
-      // Update local cache immediately; Firestore listener will sync again shortly.
-      cache.orders = [order, ...cache.orders.filter((o) => o.id !== order.id)];
+      const pax = cart
+        .filter((i) => !String(i.name || "").startsWith("Delivery"))
+        .reduce((a, i) => a + Number(i.quantity || 1), 0);
+      if (batchId && pax && firebase.firestore.FieldValue) {
+        try {
+          await db.collection("batches").doc(batchId).set(
+            { usedPax: firebase.firestore.FieldValue.increment(pax) },
+            { merge: true },
+          );
+        } catch (e) {
+          console.warn("batch usedPax skip", e);
+        }
+      }
+      cache.orders = [
+        slimOrder(order),
+        ...cache.orders.filter((o) => o.id !== order.id),
+      ];
       window.dispatchEvent(new Event("ag-data"));
     } else {
       const all = orders();
@@ -824,9 +1207,16 @@ const AG = (() => {
     }
     await addNotification(
       order.id,
-      "Order confirmed",
-      `Order ${order.id} received. Admin will prepare your food.`,
+      "Payment submitted",
+      `Order ${order.id} is waiting for admin payment verification.`,
       "customer",
+      order,
+    );
+    await addNotification(
+      order.id,
+      "Awaiting verification",
+      `Order ${order.id} has a payment receipt to verify.`,
+      "admin",
       order,
     );
     return order;
@@ -835,16 +1225,17 @@ const AG = (() => {
   async function updateOrderStatus(orderId, status, notes = "", proofUrl = "") {
     await init();
     const now = nowISO();
+    if (status !== "awaiting_verification") status = kitchenStatus(status);
     if (useFirebase) {
       const ref = db.collection("orders").doc(orderId);
       const snap = await ref.get();
       if (!snap.exists) throw new Error("Order not found.");
       const oldOrder = snap.data();
+      assertKitchenStatusAllowed(oldOrder, status);
       const history = oldOrder.history || [];
-      if (!history.some((h) => h.status === status))
-        history.push({ status, at: now });
-      else history.push({ status, at: now });
+      history.push({ status, at: now });
       const data = { status, history, updatedAt: now };
+      if (status === "ready") data.riderPhone = await getRiderPhone();
       if (notes) data.notes = notes;
       if (proofUrl) {
         data.proof = proofUrl;
@@ -870,6 +1261,7 @@ const AG = (() => {
     const all = orders();
     const order = all.find((o) => o.id === orderId);
     if (!order) throw new Error("Order not found.");
+    assertKitchenStatusAllowed(order, status);
     order.status = status;
     order.updatedAt = now;
     if (notes) order.notes = notes;
@@ -881,6 +1273,7 @@ const AG = (() => {
     }
     order.history = order.history || [];
     order.history.push({ status, at: now });
+    if (status === "ready") order.riderPhone = await getRiderPhone();
     cache.orders = all;
     localSet("agOrders", all);
     window.dispatchEvent(new Event("ag-data"));
@@ -892,6 +1285,358 @@ const AG = (() => {
       order,
     );
     return order;
+  }
+
+  function assertKitchenStatusAllowed(order, status) {
+    const pay = order.paymentStatus || "";
+    if (
+      pay === "awaiting_verification" &&
+      status !== "awaiting_verification"
+    ) {
+      throw new Error(
+        "Verify payment before updating kitchen status.",
+      );
+    }
+  }
+
+  function receiptKindFromName(name) {
+    const ext = String(name || "")
+      .trim()
+      .split(".")
+      .pop()
+      .toLowerCase();
+    return RECEIPT_EXT_TO_KIND[ext] || "";
+  }
+
+  function receiptKindFromMime(mime) {
+    return RECEIPT_MIME_TO_KIND[String(mime || "").toLowerCase()] || "";
+  }
+
+  function receiptKindFromBytes(bytes) {
+    if (!bytes || bytes.length < 4) return "";
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
+      return "jpeg";
+    if (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    )
+      return "png";
+    if (
+      bytes[0] === 0x25 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x44 &&
+      bytes[3] === 0x46
+    )
+      return "pdf";
+    return "";
+  }
+
+  async function validateReceiptFile(file) {
+    if (!file) throw new Error("Please choose a payment receipt file.");
+    if (file.size > RECEIPT_MAX_BYTES) {
+      throw new Error("Receipt file must be 5 MB or smaller.");
+    }
+    const extKind = receiptKindFromName(file.name);
+    if (!extKind) {
+        throw new Error(
+        "Only screenshots (JPG, JPEG, PNG) and PDF receipts are allowed.",
+      );
+    }
+    const mimeKind = receiptKindFromMime(file.type);
+    if (!mimeKind) {
+      throw new Error(
+        "This file type is not allowed. Upload a screenshot (JPG, JPEG, PNG) or PDF.",
+      );
+    }
+    if (extKind !== mimeKind) {
+      throw new Error(
+        "File extension and file type do not match. Receipt rejected.",
+      );
+    }
+    const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    const magicKind = receiptKindFromBytes(header);
+    if (!magicKind) {
+      throw new Error(
+        "This file is not a valid screenshot (JPG, JPEG, PNG) or PDF.",
+      );
+    }
+    if (magicKind !== extKind) {
+      throw new Error(
+        "The file content does not match the selected format. Receipt rejected.",
+      );
+    }
+    const mime =
+      magicKind === "jpeg"
+        ? "image/jpeg"
+        : magicKind === "png"
+          ? "image/png"
+          : "application/pdf";
+    return { kind: magicKind, contentType: mime };
+  }
+
+  function receiptFileExtension(kind) {
+    if (kind === "png") return ".png";
+    if (kind === "pdf") return ".pdf";
+    return ".jpg";
+  }
+
+  async function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Failed to read receipt file."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function encodeReceiptPreview(file, kind) {
+    if (kind === "pdf") {
+      if (file.size > 700 * 1024) return "";
+      return fileToDataUrl(file);
+    }
+    return compressImageToBase64(file, {
+      maxWidth: 640,
+      maxHeight: 640,
+      quality: 0.42,
+    });
+  }
+
+  async function uploadPaymentReceiptFile(file, orderId, receiptId, kind) {
+    await init();
+    if (!useFirebase || !storage) {
+      throw new Error(
+        "Receipt upload requires Firebase Storage. Sign in and try again.",
+      );
+    }
+    const path = `receipts/${orderId}/${receiptId}${receiptFileExtension(kind)}`;
+    const ref = storage.ref(path);
+    await ref.put(file, {
+      contentType:
+        kind === "jpeg"
+          ? "image/jpeg"
+          : kind === "png"
+            ? "image/png"
+            : "application/pdf",
+    });
+    let receiptUrl = "";
+    try {
+      receiptUrl = await ref.getDownloadURL();
+    } catch (err) {
+      console.warn("Receipt download URL unavailable:", err);
+    }
+    return { receiptPath: path, receiptUrl };
+  }
+
+  async function persistOrderReceipt(orderId, receiptFields) {
+    await init();
+    const applyLocal = () => {
+      const index = cache.orders.findIndex((o) => o.id === orderId);
+      if (index >= 0)
+        cache.orders[index] = { ...cache.orders[index], ...receiptFields };
+      window.dispatchEvent(new Event("ag-data"));
+    };
+    if (useFirebase) {
+      try {
+        await db.collection("orders").doc(orderId).set(receiptFields, {
+          merge: true,
+        });
+      } catch (err) {
+        if (!receiptFields.receiptDataUrl) throw err;
+        const rest = { ...receiptFields, receiptDataUrl: "" };
+        await db.collection("orders").doc(orderId).set(rest, { merge: true });
+        receiptFields = rest;
+      }
+      applyLocal();
+      return;
+    }
+    const all = orders().map((o) =>
+      o.id === orderId ? { ...o, ...receiptFields } : o,
+    );
+    cache.orders = all;
+    localSet("agOrders", all);
+  }
+
+  async function submitQrPayment(file) {
+    await init();
+    const s = session();
+    if (!s || s.role !== "customer") {
+      throw new Error("Please log in as a customer to submit payment.");
+    }
+    const checkout = localGet("agPendingCheckout", null);
+    if (!checkout || !checkout.cart || !checkout.cart.length) {
+      throw new Error("No pending checkout found. Return to cart and try again.");
+    }
+    const validated = await validateReceiptFile(file);
+    if (validated.kind === "pdf" && file.size > 220 * 1024) {
+      throw new Error("PDF is too large for this plan. Upload a JPG or PNG screenshot of the receipt.");
+    }
+    const receiptId = makeId("RCP");
+    const uploadedAt = nowISO();
+    let receiptDataUrl = "";
+    try {
+      receiptDataUrl = await encodeReceiptPreview(file, validated.kind);
+      if (receiptDataUrl.length > 280000) {
+        receiptDataUrl = await compressImageToBase64(file, {
+          maxWidth: 480,
+          maxHeight: 480,
+          quality: 0.32,
+        });
+      }
+      if (receiptDataUrl.length > 280000) receiptDataUrl = "";
+    } catch (e) {
+      receiptDataUrl = "";
+    }
+    if (!receiptDataUrl) {
+      throw new Error("Receipt could not be saved. Use a JPG or PNG screenshot (not a large PDF).");
+    }
+    const order = await createOrder(
+      checkout.cart,
+      "QR",
+      checkout.batchId,
+      {
+        receiptId,
+        receiptFileName: file.name || "",
+        receiptContentType: validated.contentType,
+        receiptUploadedAt: uploadedAt,
+        deliveryType: checkout.deliveryType || "",
+        deliveryName: checkout.deliveryName || "",
+      },
+    );
+    await persistOrderReceipt(order.id, {
+      receiptPath: "",
+      receiptUrl: "",
+      receiptDataUrl,
+      receiptFileName: file.name || "",
+      receiptContentType: validated.contentType,
+      receiptUploadedAt: uploadedAt,
+      updatedAt: nowISO(),
+    });
+    localSet("ayamGepukReceipt", checkout.cart);
+    localSet("lastOrderId", order.id);
+    localStorage.removeItem("ayamGepukCart");
+    localStorage.removeItem("agPendingCheckout");
+    return order;
+  }
+
+  async function verifyPayment(orderId) {
+    await init();
+    const s = session();
+    if (!s || s.role !== "admin") {
+      throw new Error("Only admin can verify payment.");
+    }
+    const now = nowISO();
+    const verified = {
+      paymentStatus: "verified",
+      status: "preparing",
+      updatedAt: now,
+    };
+    if (useFirebase) {
+      const ref = db.collection("orders").doc(orderId);
+      const snap = await ref.get();
+      if (!snap.exists) throw new Error("Order not found.");
+      const oldOrder = snap.data();
+      if (oldOrder.paymentStatus === "verified") return { id: orderId, ...oldOrder };
+      const history = oldOrder.history || [];
+      history.push({ status: "preparing", at: now });
+      await ref.update({ ...verified, history });
+      const updatedOrder = { id: orderId, ...oldOrder, ...verified, history };
+      const index = cache.orders.findIndex((o) => o.id === orderId);
+      if (index >= 0) cache.orders[index] = updatedOrder;
+      else cache.orders.unshift(updatedOrder);
+      window.dispatchEvent(new Event("ag-data"));
+      await addNotification(
+        orderId,
+        "Payment verified",
+        `Order ${orderId} is verified. Kitchen is preparing your food.`,
+        "customer",
+        updatedOrder,
+      );
+      return updatedOrder;
+    }
+    const all = orders();
+    const order = all.find((o) => o.id === orderId);
+    if (!order) throw new Error("Order not found.");
+    order.paymentStatus = "verified";
+    order.status = "preparing";
+    order.updatedAt = now;
+    order.history = order.history || [];
+    order.history.push({ status: "preparing", at: now });
+    cache.orders = all;
+    localSet("agOrders", all);
+    window.dispatchEvent(new Event("ag-data"));
+    await addNotification(
+      orderId,
+      "Payment verified",
+      `Order ${orderId} is confirmed. Kitchen can start preparing.`,
+      "customer",
+      order,
+    );
+    return order;
+  }
+
+  async function rejectPayment(orderId) {
+    await init();
+    const s = session();
+    if (!s || s.role !== "admin") {
+      throw new Error("Only admin can reject payment.");
+    }
+    const now = nowISO();
+    const rejected = {
+      paymentStatus: "rejected",
+      status: "awaiting_verification",
+      updatedAt: now,
+    };
+    if (useFirebase) {
+      const ref = db.collection("orders").doc(orderId);
+      const snap = await ref.get();
+      if (!snap.exists) throw new Error("Order not found.");
+      const oldOrder = snap.data();
+      await ref.set(rejected, { merge: true });
+      const updatedOrder = { id: orderId, ...oldOrder, ...rejected };
+      const index = cache.orders.findIndex((o) => o.id === orderId);
+      if (index >= 0) cache.orders[index] = slimOrder(updatedOrder);
+      window.dispatchEvent(new Event("ag-data"));
+      return updatedOrder;
+    }
+    const all = orders();
+    const order = all.find((o) => o.id === orderId);
+    if (!order) throw new Error("Order not found.");
+    Object.assign(order, rejected);
+    cache.orders = all;
+    localSet("agOrders", all);
+    window.dispatchEvent(new Event("ag-data"));
+    return order;
+  }
+
+  function receiptSrc(order) {
+    if (!order) return "";
+    return (
+      order.receiptDataUrl ||
+      order.receiptUrl ||
+      order.receiptBase64 ||
+      ""
+    );
+  }
+
+  function openReceiptFile(order) {
+    const src = receiptSrc(order);
+    if (!src) throw new Error("No receipt file is available for this order.");
+    return src;
+  }
+
+  async function loadOrderReceipt(orderId) {
+    await init();
+    const cached = orders().find((o) => o.id === orderId);
+    if (cached && receiptSrc(cached)) return cached;
+    if (useFirebase && db && orderId) {
+      const snap = await db.collection("orders").doc(orderId).get();
+      if (snap.exists) {
+        return { id: snap.id, ...snap.data() };
+      }
+    }
+    return cached || null;
   }
 
   async function compressImageToBase64(file, options = {}) {
@@ -976,16 +1721,68 @@ const AG = (() => {
     const b = batches().find((x) => x.id === bid);
     return b ? `${b.name} (${b.start}-${b.end})` : "No batch";
   }
+  function kitchenStatus(status) {
+    if (status === "awaiting_verification") return "awaiting_verification";
+    if (status === "delivered") return "delivered";
+    if (
+      status === "ready" ||
+      status === "picked_up" ||
+      status === "out_for_delivery"
+    )
+      return "ready";
+    return "preparing";
+  }
+
   function statusBadge(status) {
+    const shown = kitchenStatus(status);
     const map = {
-      confirmed: "secondary",
+      awaiting_verification: "warning text-dark",
       preparing: "warning text-dark",
       ready: "info",
-      picked_up: "primary",
-      out_for_delivery: "primary",
       delivered: "success",
     };
-    return `<span class="badge bg-${map[status] || "secondary"}">${STEP_LABELS[status] || status}</span>`;
+    return `<span class="badge bg-${map[shown] || "secondary"}">${STEP_LABELS[shown] || shown}</span>`;
+  }
+
+  function paymentBadge(paymentStatus) {
+    const label =
+      paymentStatus === "verified"
+        ? "Verified"
+        : paymentStatus === "awaiting_verification"
+          ? "Awaiting Verification"
+          : paymentStatus || "Unknown";
+    const cls =
+      paymentStatus === "verified"
+        ? "success"
+        : paymentStatus === "awaiting_verification"
+          ? "warning text-dark"
+          : "secondary";
+    return `<span class="badge bg-${cls}">${label}</span>`;
+  }
+
+  async function fetchCustomerOrderHistory(limitN = 12) {
+    await init();
+    const s = session();
+    if (!s || s.role !== "customer") return [];
+    if (!useFirebase || !db) {
+      return getCustomerOrders(s).slice(0, limitN);
+    }
+    try {
+      let ref = db.collection("orders");
+      if (s.uid) ref = ref.where("customerUid", "==", s.uid);
+      else if (s.email) ref = ref.where("email", "==", s.email);
+      const snap = await ref.limit(Number(limitN) || 12).get();
+      const arr = [];
+      snap.forEach((doc) => arr.push(slimOrder({ id: doc.id, ...doc.data() })));
+      arr.sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+      );
+      if (!subscribed.has("orders")) cache.orders = arr;
+      return arr;
+    } catch (err) {
+      console.warn("order history skip", err);
+      return getCustomerOrders(s).slice(0, limitN);
+    }
   }
 
   function getCustomerOrders(customer = session()) {
@@ -1009,8 +1806,13 @@ const AG = (() => {
       .map(([name, count]) => ({ name, count }));
   }
 
-  async function checkNotifications() {
+  async function checkNotifications(forceLoad) {
+    if (!session()) return;
     await init();
+    if (useFirebase && !subscribed.has("notifications")) {
+      if (!forceLoad) return;
+      await init(["notifications"]);
+    }
     const s = session();
     if (!s) return;
     const target = notifications()
@@ -1061,12 +1863,14 @@ const AG = (() => {
     }
   }
 
-  function createCheckoutSession(cart, payment, batchId) {
+  function createCheckoutSession(cart, payment, batchId, extra = {}) {
     const checkout = {
       id: makeId("CHK"),
       cart,
       payment,
       batchId,
+      deliveryType: extra.deliveryType || "",
+      deliveryName: extra.deliveryName || "",
       total: cart.reduce(
         (a, i) => a + Number(i.price || 0) * Number(i.quantity || 1),
         0,
@@ -1077,35 +1881,21 @@ const AG = (() => {
     return checkout;
   }
 
-  async function confirmPendingPayment(providerData = {}) {
-    const checkout = localGet("agPendingCheckout", null);
-    if (!checkout || !checkout.cart || !checkout.cart.length)
-      throw new Error("No pending checkout found.");
-    const order = await createOrder(
-      checkout.cart,
-      checkout.payment,
-      checkout.batchId,
-      {
-        paymentStatus: providerData.paymentStatus || "paid",
-        paymentProvider: providerData.paymentProvider || "Stripe FPX",
-        paymentRef: providerData.paymentRef || "",
-      },
+  async function confirmPendingPayment() {
+    throw new Error(
+      "Stripe checkout is no longer used. Pay with QR and upload your receipt.",
     );
-    localSet("ayamGepukReceipt", checkout.cart);
-    localSet("lastOrderId", order.id);
-    localStorage.removeItem("ayamGepukCart");
-    localStorage.removeItem("agPendingCheckout");
-    return order;
   }
 
   async function seedDemoData() {
     await init();
     if (useFirebase) {
       await seedDefaultsIfNeeded();
-      toast("Firebase seeded", "Default staff, menu and batch created.");
+      await init(ADMIN_DATA);
+      toast("Firebase seeded", "Default staff created.");
     } else {
       await initLocal();
-      toast("Local data ready", "Default staff, menu and batch created.");
+      toast("Local data ready", "Default staff ready.");
     }
   }
 
@@ -1175,12 +1965,17 @@ const AG = (() => {
   window.addEventListener("storage", () =>
     checkNotifications().catch(() => {}),
   );
-  setInterval(() => checkNotifications().catch(() => {}), 5000);
+  setInterval(() => {
+    if (!session()) return;
+    if (useFirebase && !subscribed.has("notifications")) return;
+    checkNotifications().catch(() => {});
+  }, 15000);
 
   return {
     ORDER_STEPS,
     STEP_LABELS,
     STAFF,
+    DELIVERY_OPTIONS,
     init,
     seedDemoData,
     get: localGet,
@@ -1191,6 +1986,13 @@ const AG = (() => {
     session,
     requireRole,
     getCustomerProfile,
+    needsCustomerContact,
+    riders,
+    saveRider,
+    deleteRider,
+    acceptJob,
+    getRiderPhone,
+    saveRiderPhone,
     updateCustomerProfile,
     registerCustomer,
     loginCustomer,
@@ -1212,18 +2014,26 @@ const AG = (() => {
     sendChatMessage,
     createOrder,
     updateOrderStatus,
+    validateReceiptFile,
+    submitQrPayment,
+    verifyPayment,
+    rejectPayment,
+    openReceiptFile,
+    loadOrderReceipt,
+    paymentBadge,
     uploadMenuImage,
     uploadProof,
     orderDetails,
     batchName,
     statusBadge,
+    kitchenStatus,
     checkNotifications,
     imageSrc,
     getCustomerOrders,
+    fetchCustomerOrderHistory,
     favouriteMenus,
     createCheckoutSession,
     confirmPendingPayment,
-    aiInventoryReply,
     isFirebase: () => useFirebase,
   };
 })();

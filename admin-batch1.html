@@ -7,9 +7,9 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
     <title>Admin Batch</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
@@ -35,7 +35,7 @@
       }
       .sidebar {
         width: 240px;
-        background: #b94b4d;
+        background: var(--header-grad);
         color: white;
         padding: 24px 18px;
         position: fixed;
@@ -45,12 +45,12 @@
         overflow-y: auto;
       }
       .sidebar-logo {
-        width: 78px;
-        height: 78px;
+        width: 88px;
+        height: 88px;
         object-fit: contain;
-        background: white;
-        border-radius: 8px;
-        padding: 4px;
+        background: #111;
+        border-radius: 16px;
+        padding: 6px;
         display: block;
         margin: 0 auto 14px;
       }
@@ -77,8 +77,8 @@
       }
       .nav-link-admin:hover,
       .nav-link-admin.active {
-        background: white;
-        color: #b94b4d;
+        background: rgba(0, 0, 0, 0.28);
+        color: #fff;
       }
       .admin-main {
         margin-left: 240px;
@@ -107,7 +107,7 @@
         min-height: 46px;
       }
       .btn-brand {
-        background: #b94b4d;
+        background: var(--header-grad);
         color: white;
         border-radius: 12px;
         border: none;
@@ -201,7 +201,7 @@
         max-width: 85%;
       }
       .msg.user {
-        background: #b94b4d;
+        background: var(--header-grad);
         color: #fff;
         margin-left: auto;
       }
@@ -251,16 +251,16 @@
   <body>
     <div class="admin-layout">
       <aside class="sidebar">
-        <img src="images/logo.png" class="sidebar-logo" alt="Logo" />
-        <h5>ADMIN PORTAL</h5>
+        <img src="images/logo.png?v=warisan" class="sidebar-logo" alt="Logo" />
+        <h5>WARISAN CAFE</h5>
         <a class="nav-link-admin" href="admin-dashboard1.html"
           ><i class="bi bi-speedometer2"></i> Orders</a
         ><a class="nav-link-admin active" href="admin-batch1.html"
           ><i class="bi bi-calendar-plus"></i> Batch</a
         ><a class="nav-link-admin" href="admin-menu1.html"
           ><i class="bi bi-list-ul"></i> Menu</a
-        ><a class="nav-link-admin" href="admin-ai1.html"
-          ><i class="bi bi-robot"></i>Inventory</a
+        ><a class="nav-link-admin" href="admin-riders1.html"
+          ><i class="bi bi-bicycle"></i> Rider</a
         >
         <div class="sidebar-footer">
           <button class="nav-link-admin" onclick="AG.logout()">
@@ -352,7 +352,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script
@@ -466,7 +465,6 @@
       (async () => {
         const s = await AG.requireRole(["admin"]);
         if (!s) return;
-        await AG.init();
         resetBatchForm();
         renderBatches();
         window.addEventListener("ag-data", renderBatches);

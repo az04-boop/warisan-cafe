@@ -7,9 +7,9 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GepukGO" />
-    <link rel="apple-touch-icon" href="/images/logo.png" />
-    <meta name="theme-color" content="#b94b4d" />
+    <meta name="apple-mobile-web-app-title" content="Warisan Cafe" />
+    <link rel="apple-touch-icon" href="/images/logo.png?v=warisan" />
+    <meta name="theme-color" content="#1b7a3d" />
 
     <title>Admin Orders</title>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -35,7 +35,7 @@
       }
       .sidebar {
         width: 240px;
-        background: #b94b4d;
+        background: var(--header-grad);
         color: white;
         padding: 24px 18px;
         position: fixed;
@@ -45,12 +45,12 @@
         overflow-y: auto;
       }
       .sidebar-logo {
-        width: 78px;
-        height: 78px;
+        width: 88px;
+        height: 88px;
         object-fit: contain;
-        background: white;
-        border-radius: 8px;
-        padding: 4px;
+        background: #111;
+        border-radius: 16px;
+        padding: 6px;
         display: block;
         margin: 0 auto 14px;
       }
@@ -77,8 +77,8 @@
       }
       .nav-link-admin:hover,
       .nav-link-admin.active {
-        background: white;
-        color: #b94b4d;
+        background: rgba(0, 0, 0, 0.28);
+        color: #fff;
       }
       .admin-main {
         margin-left: 240px;
@@ -107,7 +107,7 @@
         min-height: 46px;
       }
       .btn-brand {
-        background: #b94b4d;
+        background: #c62828;
         color: white;
         border-radius: 12px;
         border: none;
@@ -117,13 +117,60 @@
         background: #a73f42;
         color: white;
       }
-      .badge-red {
-        background: #dc3545;
-        color: white;
+      .badge-pending {
+        background: #f59e0b;
+        color: #fff;
         border-radius: 999px;
         padding: 9px 18px;
         font-weight: 700;
         white-space: nowrap;
+      }
+      .verify-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .verify-head h4 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 6px;
+        font-weight: 800;
+      }
+      .verify-head h4 i {
+        font-size: 1.35rem;
+      }
+      .verify-empty {
+        text-align: center;
+        color: #6c757d;
+        padding: 18px 8px 8px;
+      }
+      .verify-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+        gap: 12px 18px;
+        align-items: center;
+        padding: 14px 0;
+        border-top: 1px solid #f0f0f0;
+      }
+      .verify-item:first-of-type {
+        border-top: 0;
+      }
+      .verify-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      @media (max-width: 768px) {
+        .verify-item {
+          grid-template-columns: 1fr;
+        }
+        .verify-actions {
+          justify-content: flex-start;
+        }
       }
       .small-muted {
         color: #6c757d;
@@ -192,10 +239,10 @@
       .print-panel{background:#fff;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.07);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;flex-wrap:wrap;gap:14px}
       .print-panel .print-label{font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px;white-space:nowrap}
       .form-switch .form-check-input{width:2.4em;height:1.3em;cursor:pointer}
-      .form-check-input:checked{background-color:#b94b4d;border-color:#b94b4d}
+      .form-check-input:checked{background-color:#c62828;border-color:#c62828}
       #printerSelect{min-width:180px;border:1.5px solid #e0e0e0;border-radius:10px;padding:6px 12px;font-size:13px;outline:none}
-      #testPrintBtn{font-size:13px;padding:6px 14px;border-radius:10px;border:1.5px solid #b94b4d;color:#b94b4d;background:#fff;font-weight:700;cursor:pointer;white-space:nowrap}
-      #testPrintBtn:hover{background:#b94b4d;color:#fff}
+      #testPrintBtn{font-size:13px;padding:6px 14px;border-radius:10px;border:1.5px solid #c62828;color:#c62828;background:#fff;font-weight:700;cursor:pointer;white-space:nowrap}
+      #testPrintBtn:hover{background:#c62828;color:#fff}
       /* ── New-order banner ── */
       #newOrderBanner{display:none;position:fixed;top:18px;right:18px;z-index:9999;background:#22c55e;color:#fff;font-weight:700;font-size:14px;padding:12px 20px;border-radius:14px;box-shadow:0 6px 24px rgba(34,197,94,.35);animation:slideIn .3s ease}
       @keyframes slideIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
@@ -204,8 +251,8 @@
   <body>
     <div class="admin-layout">
       <aside class="sidebar">
-        <img src="images/logo.png" class="sidebar-logo" alt="Logo" />
-        <h5>ADMIN PORTAL</h5>
+        <img src="images/logo.png?v=warisan" class="sidebar-logo" alt="Logo" />
+        <h5>WARISAN CAFE</h5>
         <a class="nav-link-admin active" href="admin-dashboard1.html"
           ><i class="bi bi-speedometer2"></i> Orders</a
         >
@@ -215,8 +262,8 @@
         <a class="nav-link-admin" href="admin-menu1.html"
           ><i class="bi bi-list-ul"></i> Menu</a
         >
-        <a class="nav-link-admin" href="admin-ai1.html"
-          ><i class="bi bi-robot"></i> AI Inventory</a
+        <a class="nav-link-admin" href="admin-riders1.html"
+          ><i class="bi bi-bicycle"></i> Rider</a
         >
         <div class="sidebar-footer">
           <button class="nav-link-admin" type="button" id="logoutBtn">
@@ -230,15 +277,14 @@
 
       <main class="admin-main">
 
-        <!-- Auto-print control panel -->
         <div class="print-panel">
-          <span class="print-label"><i class="bi bi-printer-fill" style="color:#b94b4d"></i> Auto-Print</span>
+          <span class="print-label"><i class="bi bi-printer-fill" style="color:#c62828"></i> Auto-Print</span>
           <div class="form-check form-switch mb-0">
             <input class="form-check-input" type="checkbox" id="autoPrintToggle" title="Enable auto-print on new order">
           </div>
           <select id="printerSelect" title="Select printer"></select>
           <button id="testPrintBtn" type="button"><i class="bi bi-printer me-1"></i>Test Print</button>
-          <span style="font-size:12px;color:#6b7280;margin-left:auto">Prints automatically when a new order arrives · via ngrok server</span>
+          <span style="font-size:12px;color:#6b7280;margin-left:auto">Prints automatically when a new order arrives · local server</span>
         </div>
 
         <div class="dashboard-top">
@@ -250,6 +296,23 @@
           </div>
           <div class="badge-red">
             New Orders: <span id="newOrderCount">0</span>
+          </div>
+        </div>
+
+        <div class="card-soft mb-4">
+          <div class="verify-head">
+            <div>
+              <h4><i class="bi bi-clipboard-check"></i> Payment Verification Queue</h4>
+              <p class="small-muted mb-0">
+                Review uploaded QR payment slips, then verify or reject before the order enters the kitchen flow.
+              </p>
+            </div>
+            <div class="badge-pending">
+              Pending: <span id="pendingVerifyCount">0</span>
+            </div>
+          </div>
+          <div id="verifyQueue">
+            <p class="verify-empty mb-0">No orders waiting for payment verification.</p>
           </div>
         </div>
 
@@ -282,11 +345,9 @@
               <label class="form-label fw-semibold">Filter Status</label>
               <select id="orderStatusFilter" class="form-select">
                 <option value="all">All Status</option>
-                <option value="confirmed">Order Confirmed</option>
-                <option value="preparing">Preparing Food</option>
-                <option value="ready">Ready for Pickup</option>
-                <option value="picked_up">Picked Up by Rider</option>
-                <option value="out_for_delivery">Out for Delivery</option>
+                <option value="awaiting_verification">Awaiting Verification</option>
+                <option value="preparing">Preparing</option>
+                <option value="ready">Ready</option>
                 <option value="delivered">Delivered</option>
               </select>
             </div>
@@ -329,7 +390,7 @@
               </thead>
               <tbody id="ordersBody">
                 <tr>
-                  <td colspan="8" class="text-center text-muted py-4">
+                  <td colspan="9" class="text-center text-muted py-4">
                     Loading orders...
                   </td>
                 </tr>
@@ -340,10 +401,17 @@
       </main>
     </div>
 
+    <div id="receiptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;padding:24px">
+      <div style="background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:16px;position:relative">
+        <button type="button" id="closeReceiptModal" class="btn btn-sm btn-outline-secondary" style="position:absolute;right:12px;top:12px">Close</button>
+        <h5 class="fw-bold mb-3">Payment receipt</h5>
+        <div id="receiptPreview"></div>
+      </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
