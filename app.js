@@ -39,13 +39,15 @@ const AG = (() => {
   const STAFF = {
     admin: {
       id: "ADMIN001",
+      password: "admin123",
       role: "admin",
       name: "Admin Warisan Cafe",
     },
     rider: {
       id: "RIDER001",
+      password: "rider123",
       role: "rider",
-      name: "Rider",
+      name: "Ahmad Rider",
       phone: "",
     },
   };
@@ -172,6 +174,14 @@ const AG = (() => {
     if (!useFirebase || !auth) return session();
     const user = await waitForAuth();
     if (!user) {
+      const local = session();
+      if (
+        local &&
+        (local.id === "ADMIN001" || local.id === "RIDER001") &&
+        (local.role === "admin" || local.role === "rider")
+      ) {
+        return local;
+      }
       localStorage.removeItem("agSession");
       return null;
     }
@@ -232,9 +242,17 @@ const AG = (() => {
         ? "staff-login1.html"
         : "login1.html";
     if (useFirebase && auth && !(await waitForAuth())) {
-      localStorage.removeItem("agSession");
-      window.location.href = loginPage;
-      return null;
+      if (
+        !(
+          s &&
+          (s.id === "ADMIN001" || s.id === "RIDER001") &&
+          (s.role === "admin" || s.role === "rider")
+        )
+      ) {
+        localStorage.removeItem("agSession");
+        window.location.href = loginPage;
+        return null;
+      }
     }
     if (!s || !s.role) {
       window.location.href = loginPage;
@@ -780,33 +798,44 @@ const AG = (() => {
     return { id: doc.id, ...(doc.data() || {}) };
   }
 
-  async function loginStaff(emailVal, password) {
+  async function loginStaff(idVal, password) {
     await init();
-    const email = String(emailVal || "").trim();
+    const staffId = String(idVal || "")
+      .trim()
+      .toUpperCase();
     const staffPassword = String(password || "").trim();
-    if (!email || !staffPassword) {
-      throw new Error("Enter staff email and password.");
+    if (!staffId || !staffPassword) {
+      throw new Error("Enter staff ID and password.");
     }
-    if (!useFirebase || !auth) {
-      throw new Error("Staff login requires Firebase Authentication.");
+    if (staffId === "ADMIN001" && staffPassword === STAFF.admin.password) {
+      if (useFirebase && auth && auth.currentUser) {
+        try {
+          await auth.signOut();
+        } catch (e) {}
+      }
+      localSet("agSession", {
+        role: "admin",
+        id: "ADMIN001",
+        name: STAFF.admin.name,
+      });
+      return "admin";
     }
-    const cred = await auth.signInWithEmailAndPassword(email, staffPassword);
-    const account = await staffRecordForUser(cred.user);
-    if (!account || (account.role !== "admin" && account.role !== "rider")) {
-      await auth.signOut();
-      throw new Error(
-        "This account is not registered as staff. Create Authentication user, then a staff document with that user's UID.",
-      );
+    if (staffId === "RIDER001" && staffPassword === STAFF.rider.password) {
+      if (useFirebase && auth && auth.currentUser) {
+        try {
+          await auth.signOut();
+        } catch (e) {}
+      }
+      const phone = await getRiderPhone();
+      localSet("agSession", {
+        role: "rider",
+        id: "RIDER001",
+        name: STAFF.rider.name,
+        phone,
+      });
+      return "rider";
     }
-    localSet("agSession", {
-      role: account.role,
-      uid: cred.user.uid,
-      id: account.id,
-      name: account.name || cred.user.displayName || "Staff",
-      email: cred.user.email || account.email || email,
-      phone: account.phone || "",
-    });
-    return account.role;
+    throw new Error("Invalid staff ID or password.");
   }
 
   function menu() {
