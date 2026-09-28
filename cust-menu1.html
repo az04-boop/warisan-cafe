@@ -286,8 +286,10 @@
           .getElementById("searchInput")
           .addEventListener("input", renderMenu);
         renderMenu();
+        AG.pruneCartAgainstMenu();
         renderCount();
         window.addEventListener("ag-data", () => {
+          AG.pruneCartAgainstMenu();
           renderMenu();
           renderCount();
         });

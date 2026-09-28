@@ -406,8 +406,9 @@
       }
 
       (async () => {
-        const s = await AG.requireRole(["customer"], ["batches"]);
+        const s = await AG.requireRole(["customer"], ["batches", "menu"]);
         if (!s) return;
+        AG.pruneCartAgainstMenu();
         function cart() {
           return AG.get("ayamGepukCart", []);
         }
@@ -480,7 +481,12 @@
         };
         /* shared pay logic called after address is confirmed */
         window.doPay = async function() {
-          const c = cart();
+          const c = AG.pruneCartAgainstMenu();
+          if (!c.length) {
+            AG.toast("Cart updated", "A menu item was removed. Your cart is empty.");
+            renderCart();
+            return;
+          }
           const b = AG.batches().find((x) => x.id === batchSelect.value);
           if (!b) { AG.toast("Batch required", "Please select an available batch."); return; }
           if (isFull(b)) { AG.toast("Batch full", "Please select another batch."); renderBatch(); return; }
@@ -529,7 +535,11 @@
         renderDeliveryOptions();
         renderCart();
         refreshDeliveryUI();
-        window.addEventListener("ag-data", renderBatch);
+        window.addEventListener("ag-data", () => {
+          AG.pruneCartAgainstMenu();
+          renderCart();
+          renderBatch();
+        });
       })();
     </script>
   </body>

@@ -814,6 +814,21 @@ const AG = (() => {
       cache.menu.length ? cache.menu : localGet("agMenu", DEFAULT_MENU)
     ).map(normalizeMenuItem);
   }
+
+  function pruneCartAgainstMenu() {
+    const live = menu();
+    if (!live.length) return localGet("ayamGepukCart", []);
+    const allowed = new Set(live.map((m) => m.id));
+    const cart = localGet("ayamGepukCart", []);
+    if (!Array.isArray(cart) || !cart.length) return cart;
+    const next = cart.filter((item) => {
+      if (!item || !item.id) return true;
+      if (String(item.name || "").startsWith("Delivery")) return true;
+      return allowed.has(item.id);
+    });
+    if (next.length !== cart.length) localSet("ayamGepukCart", next);
+    return next;
+  }
   function riders() {
     return cache.riders.length ? cache.riders : localGet("agRiders", []);
   }
@@ -1999,6 +2014,7 @@ const AG = (() => {
     googleLogin,
     loginStaff,
     menu,
+    pruneCartAgainstMenu,
     saveMenu,
     saveMenuItem,
     deleteMenuItem,

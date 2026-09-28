@@ -220,9 +220,10 @@
         function myOrders() {
           return AG.orders().filter(
             (o) =>
-              !sess.email ||
-              o.email === sess.email ||
-              o.customerUid === sess.uid,
+              (!sess.email ||
+                o.email === sess.email ||
+                o.customerUid === sess.uid) &&
+              AG.kitchenStatus(o.status) !== "delivered",
           );
         }
 
@@ -237,13 +238,15 @@
             )
             .join("");
           const last = AG.get("lastOrderId", "");
-          sel.value = current || last || arr[0]?.id || "";
+          const lastOk = arr.some((o) => o.id === last);
+          const currentOk = arr.some((o) => o.id === current);
+          sel.value = (currentOk && current) || (lastOk && last) || arr[0]?.id || "";
         }
 
         function renderTrack() {
           const sel = document.getElementById("orderSelect");
           const o =
-            AG.orders().find((x) => x.id === sel.value) || myOrders()[0];
+            myOrders().find((x) => x.id === sel.value) || myOrders()[0];
           const trackBox = document.getElementById("trackBox");
           const proofBox = document.getElementById("proofBox");
           if (!o) {
