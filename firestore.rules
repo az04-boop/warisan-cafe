@@ -2,35 +2,85 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function staffPath() {
+      return /databases/$(database)/documents/staff/$(request.auth.uid);
+    }
+    function isAdmin() {
+      return signedIn()
+        && exists(staffPath())
+        && get(staffPath()).data.role == "admin";
+    }
+    function isRider() {
+      return signedIn()
+        && exists(staffPath())
+        && get(staffPath()).data.role == "rider";
+    }
+    function isStaff() {
+      return isAdmin() || isRider();
+    }
+
     match /customers/{customerId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == customerId;
+      allow read, write: if signedIn() && request.auth.uid == customerId;
+      allow read: if isAdmin();
 
       match /fcmTokens/{tokenId} {
-        allow read, write: if request.auth != null && request.auth.uid == customerId;
+        allow read, write: if signedIn() && request.auth.uid == customerId;
       }
     }
 
-    match /menu/{menuId} {
-      allow read, write: if true;
-    }
-    match /batches/{batchId} {
-      allow read, write: if true;
-    }
-    match /orders/{orderId} {
-      allow read, write: if true;
-    }
-    match /riders/{riderId} {
-      allow read, write: if true;
-    }
     match /staff/{staffId} {
-      allow read, write: if true;
+      allow read: if signedIn()
+        && (request.auth.uid == staffId
+          || resource.data.email == request.auth.token.email);
+      allow write: if isAdmin();
     }
+
+    match /menu/{menuId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /batches/{batchId} {
+      allow read: if signedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["usedPax"]));
+    }
+
+    match /riders/{riderId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.customerUid == request.auth.uid
+        && request.resource.data.status == "awaiting_verification"
+        && request.resource.data.paymentStatus == "awaiting_verification";
+      allow update: if isStaff()
+        || (signedIn()
+          && resource.data.customerUid == request.auth.uid
+          && request.resource.data.customerUid == resource.data.customerUid
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.paymentStatus == resource.data.paymentStatus);
+      allow delete: if isAdmin();
+    }
+
     match /notifications/{notificationId} {
-      allow read, write: if true;
+      allow read: if isStaff()
+        || (signedIn() && resource.data.email == request.auth.token.email);
+      allow create, update: if isStaff();
+      allow delete: if isAdmin();
     }
+
     match /chatMessages/{messageId} {
-      allow read, write: if true;
+      allow read, write: if isStaff();
     }
   }
 }
