@@ -525,7 +525,7 @@ const AG = (() => {
 
   function needsCustomerIdentity(s = session()) {
     const c = customerContact(s);
-    return !c.email || !c.phone;
+    return !c.phone || !c.address;
   }
 
   function validCustomerEmail(email) {
@@ -540,69 +540,65 @@ const AG = (() => {
   let identityPrompt = null;
 
   function openIdentityOverlay(s, onSaved) {
-    let overlay = document.getElementById("agIdentityOverlay");
-    if (!overlay) {
-      overlay = document.createElement("div");
-      overlay.id = "agIdentityOverlay";
-      overlay.innerHTML =
-        '<style>' +
-        "#agIdentityOverlay{position:fixed;inset:0;z-index:1080;background:rgba(20,16,16,.55);display:flex;align-items:center;justify-content:center;padding:18px}" +
-        "#agIdentityCard{width:min(100%,400px);background:#fffdf8;border-radius:22px;box-shadow:0 14px 40px rgba(27,122,61,.18);padding:22px 20px 18px}" +
-        "#agIdentityCard h5{font-weight:800;margin:0 0 6px;text-align:center}" +
-        "#agIdentityCard p{color:#6c757d;font-size:.86rem;text-align:center;margin:0 0 16px}" +
-        "#agIdentityCard label{font-size:.8rem;font-weight:700;margin-bottom:4px}" +
-        "#agIdentityCard .form-control{border-radius:12px}" +
-        "#agIdentityErr{display:none;color:#c62828;font-size:.8rem;margin:0 0 10px;text-align:center}" +
-        "</style>" +
-        '<div id="agIdentityCard" role="dialog" aria-modal="true" aria-labelledby="agIdentityTitle">' +
-        '<h5 id="agIdentityTitle">Complete your details</h5>' +
-        "<p>Email and phone number are required before you can order.</p>" +
-        '<div class="mb-3 text-start"><label class="form-label" for="agIdentityEmail">Email</label>' +
-        '<input id="agIdentityEmail" type="email" class="form-control" autocomplete="email" required></div>' +
-        '<div class="mb-3 text-start"><label class="form-label" for="agIdentityPhone">Phone</label>' +
-        '<input id="agIdentityPhone" type="tel" class="form-control" placeholder="e.g. 0123456789" autocomplete="tel" required></div>' +
-        '<p id="agIdentityErr"></p>' +
-        '<button type="button" class="btn btn-brand w-100 py-2" id="agIdentitySave">Save and continue</button>' +
-        "</div>";
-      document.body.appendChild(overlay);
-    }
-    overlay.style.display = "flex";
+    const old = document.getElementById("agIdentityOverlay");
+    if (old) old.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "agIdentityOverlay";
+    overlay.innerHTML =
+      '<style>' +
+      "#agIdentityOverlay{position:fixed;inset:0;z-index:1080;background:rgba(20,16,16,.55);display:flex;align-items:center;justify-content:center;padding:18px}" +
+      "#agIdentityCard{width:min(100%,400px);background:#fffdf8;border-radius:22px;box-shadow:0 14px 40px rgba(27,122,61,.18);padding:22px 20px 18px}" +
+      "#agIdentityCard h5{font-weight:800;margin:0 0 6px;text-align:center}" +
+      "#agIdentityCard p{color:#6c757d;font-size:.86rem;text-align:center;margin:0 0 16px}" +
+      "#agIdentityCard label{font-size:.8rem;font-weight:700;margin-bottom:4px}" +
+      "#agIdentityCard .form-control{border-radius:12px}" +
+      "#agIdentityAddress{min-height:88px;resize:vertical}" +
+      "#agIdentityErr{display:none;color:#c62828;font-size:.8rem;margin:0 0 10px;text-align:center}" +
+      "</style>" +
+      '<div id="agIdentityCard" role="dialog" aria-modal="true" aria-labelledby="agIdentityTitle">' +
+      '<h5 id="agIdentityTitle">Complete your details</h5>' +
+      "<p>Phone number and delivery address are required before you can order.</p>" +
+      '<div class="mb-3 text-start"><label class="form-label" for="agIdentityPhone">Phone</label>' +
+      '<input id="agIdentityPhone" type="tel" class="form-control" placeholder="e.g. 0123456789" autocomplete="tel" required></div>' +
+      '<div class="mb-3 text-start"><label class="form-label" for="agIdentityAddress">Delivery address</label>' +
+      '<textarea id="agIdentityAddress" class="form-control" placeholder="House number, street, area" autocomplete="street-address" required></textarea></div>' +
+      '<p id="agIdentityErr"></p>' +
+      '<button type="button" class="btn btn-brand w-100 py-2" id="agIdentitySave">Save and continue</button>' +
+      "</div>";
+    document.body.appendChild(overlay);
     document.body.style.overflow = "hidden";
-    const emailInput = document.getElementById("agIdentityEmail");
     const phoneInput = document.getElementById("agIdentityPhone");
+    const addressInput = document.getElementById("agIdentityAddress");
     const err = document.getElementById("agIdentityErr");
     const saveBtn = document.getElementById("agIdentitySave");
-    const existingEmail = String((s && s.email) || "").trim();
-    emailInput.value = existingEmail;
-    emailInput.readOnly = Boolean(existingEmail);
     phoneInput.value = String((s && s.phone) || "").trim();
-    err.style.display = "none";
+    addressInput.value = String((s && (s.addressDetail || s.address)) || "").trim();
     phoneInput.focus();
 
     saveBtn.onclick = async () => {
-      const email = emailInput.value.trim();
       const phone = phoneInput.value.trim();
-      if (!validCustomerEmail(email)) {
-        err.textContent = "Please enter a valid email address.";
+      const address = addressInput.value.trim();
+      if (!validCustomerPhone(phone)) {
+        err.textContent = "Please enter a valid phone number.";
         err.style.display = "block";
         return;
       }
-      if (!validCustomerPhone(phone)) {
-        err.textContent = "Please enter a valid phone number.";
+      if (!address) {
+        err.textContent = "Please enter your delivery address.";
         err.style.display = "block";
         return;
       }
       try {
         saveBtn.disabled = true;
         await updateCustomerProfile({
-          email,
+          email: (s && s.email) || (auth && auth.currentUser && auth.currentUser.email) || "",
           phone,
           name: (s && s.name) || "Customer",
-          address: (s && (s.addressDetail || s.address)) || "",
-          addressDetail: (s && (s.addressDetail || s.address)) || "",
+          address,
+          addressDetail: address,
           addressArea: (s && s.addressArea) || "",
         });
-        overlay.style.display = "none";
+        overlay.remove();
         document.body.style.overflow = "";
         if (onSaved) onSaved();
       } catch (e) {
@@ -724,13 +720,18 @@ const AG = (() => {
       : (data.address || s.address || "");
     const phone = data.phone !== undefined ? data.phone : s.phone;
     const email = String(
-      data.email !== undefined ? data.email : s.email || "",
+      data.email !== undefined
+        ? data.email
+        : s.email || (auth && auth.currentUser && auth.currentUser.email) || "",
     ).trim();
-    if (!validCustomerEmail(email)) {
+    if (email && !validCustomerEmail(email)) {
       throw new Error("Please add a valid email address.");
     }
     if (!validCustomerPhone(phone)) {
       throw new Error("Please add a valid phone number.");
+    }
+    if (!String(addressDetail || address || "").trim()) {
+      throw new Error("Please add your delivery address.");
     }
     const updated = {
       ...s,
