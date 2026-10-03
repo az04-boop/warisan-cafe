@@ -364,10 +364,12 @@ const AG = (() => {
       o.hasReceipt = true;
       o.receiptDataUrl = "";
     }
-    if (typeof o.proof === "string" && o.proof.length > 180) {
-      o.hasProof = true;
-      o.proof = "";
-    }
+    ["proof", "proofUrl", "proofBase64"].forEach((k) => {
+      if (typeof o[k] === "string" && o[k].length > 180) {
+        o.hasProof = true;
+        o[k] = "";
+      }
+    });
     return o;
   }
 
@@ -1774,6 +1776,29 @@ const AG = (() => {
     return cached || null;
   }
 
+  function proofSrc(order) {
+    if (!order) return "";
+    return String(
+      order.proofUrl || order.proof || order.proofBase64 || "",
+    ).trim();
+  }
+
+  async function loadOrderProof(orderId) {
+    await init();
+    const cached = orders().find((o) => o.id === orderId);
+    const src = proofSrc(cached);
+    if (src && (src.startsWith("data:image") || src.startsWith("http") || src.startsWith("blob:"))) {
+      return cached;
+    }
+    if (useFirebase && db && orderId) {
+      const snap = await db.collection("orders").doc(orderId).get();
+      if (snap.exists) {
+        return { id: snap.id, ...snap.data() };
+      }
+    }
+    return cached || null;
+  }
+
   async function compressImageToBase64(file, options = {}) {
     await init();
     if (!file) return "";
@@ -2158,6 +2183,7 @@ const AG = (() => {
     rejectPayment,
     openReceiptFile,
     loadOrderReceipt,
+    loadOrderProof,
     paymentBadge,
     uploadMenuImage,
     uploadProof,

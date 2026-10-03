@@ -217,14 +217,29 @@
           "customer",
         );
 
-        function myOrders() {
+        function mine() {
           return AG.orders().filter(
             (o) =>
-              (!sess.email ||
-                o.email === sess.email ||
-                o.customerUid === sess.uid) &&
-              AG.kitchenStatus(o.status) !== "delivered",
+              !sess.email ||
+              o.email === sess.email ||
+              o.customerUid === sess.uid,
           );
+        }
+
+        function myOrders() {
+          const all = mine();
+          const active = all.filter(
+            (o) => AG.kitchenStatus(o.status) !== "delivered",
+          );
+          const delivered = all
+            .filter((o) => AG.kitchenStatus(o.status) === "delivered")
+            .sort(
+              (a, b) =>
+                new Date(b.updatedAt || b.createdAt || 0) -
+                new Date(a.updatedAt || a.createdAt || 0),
+            );
+          if (delivered[0]) return [...active, delivered[0]];
+          return active;
         }
 
         function renderSelect() {
@@ -243,6 +258,7 @@
           sel.value = (currentOk && current) || (lastOk && last) || arr[0]?.id || "";
         }
 
+        let proofLoad = 0;
         function renderTrack() {
           const sel = document.getElementById("orderSelect");
           const o =
@@ -276,11 +292,49 @@
         </div>
       </div>`;
           }).join("");
-          proofBox.innerHTML =
-            o.proofUrl || o.proof
-              ? `<div class="proof-card"><h6 class="fw-bold mb-2"><i class="bi bi-camera-fill me-2 text-green"></i>Proof of Delivery</h6><img class="proof-img" src="${o.proofUrl || o.proof}"><p class="small text-muted mt-2 mb-0">${o.notes || ""}</p></div>`
-              : "";
           renderChat(o);
+          const seq = ++proofLoad;
+          const delivered = AG.kitchenStatus(o.status) === "delivered";
+          if (!delivered && !o.hasProof && !o.proof && !o.proofUrl) {
+            proofBox.innerHTML = "";
+            return;
+          }
+          if (proofBox.querySelector(".proof-img") && proofBox.getAttribute("data-order") === o.id) {
+            return;
+          }
+          proofBox.setAttribute("data-order", o.id);
+          proofBox.innerHTML =
+            '<div class="proof-card"><p class="small text-muted mb-0">Loading proof of delivery…</p></div>';
+          AG.loadOrderProof(o.id)
+            .then((full) => {
+              if (seq !== proofLoad) return;
+              const src = String(
+                (full && (full.proofUrl || full.proof || full.proofBase64)) || "",
+              );
+              const notes = String((full && full.notes) || o.notes || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+              if (
+                src.startsWith("data:image") ||
+                src.startsWith("http") ||
+                src.startsWith("blob:")
+              ) {
+                proofBox.innerHTML =
+                  `<div class="proof-card"><h6 class="fw-bold mb-2"><i class="bi bi-camera-fill me-2 text-green"></i>Proof of Delivery</h6><img class="proof-img" src="${src}" alt="Proof of delivery"><p class="small text-muted mt-2 mb-0">${notes}</p></div>`;
+              } else if (delivered) {
+                proofBox.innerHTML =
+                  '<div class="proof-card"><h6 class="fw-bold mb-2"><i class="bi bi-camera-fill me-2 text-green"></i>Proof of Delivery</h6><p class="small text-muted mb-0">Waiting for the rider photo.</p></div>';
+              } else {
+                proofBox.innerHTML = "";
+              }
+            })
+            .catch(() => {
+              if (seq !== proofLoad) return;
+              proofBox.innerHTML = delivered
+                ? '<div class="proof-card"><p class="small text-muted mb-0">Proof of delivery is not available yet.</p></div>'
+                : "";
+            });
         }
 
         async function renderChat(order) {
