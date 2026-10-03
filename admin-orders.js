@@ -89,19 +89,95 @@
     }
   }
 
+  function rm(n) {
+    return 'RM ' + Number(n || 0).toFixed(2);
+  }
+
   function printOrder(id) {
     const order = AG.orders().find(item => item.id === id);
     if (!order) return;
 
-    const rows = (order.items || []).map(item => {
-      const detail = [item.variationText || item.variation || '', item.note ? 'Note: ' + item.note : ''].filter(Boolean).join(' | ');
+    const when = order.createdAt
+      ? new Date(order.createdAt).toLocaleString('en-MY', {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        })
+      : '';
+    const items = (order.items || []).map(item => {
+      const detail = [item.variationText || item.variation || '', item.note ? 'Note: ' + item.note : '']
+        .filter(Boolean)
+        .join(' · ');
       const amount = Number(item.price || 0) * Number(item.quantity || 1);
-      return `<tr><td>${text(item.name)}<br><small>${text(detail)}</small></td><td>${text(item.quantity)}</td><td>RM ${amount.toFixed(2)}</td></tr>`;
+      return `<div class="item">
+        <div class="row"><span>${text(item.quantity)}x ${text(item.name)}</span><span class="amt">${rm(amount)}</span></div>
+        ${detail ? `<div class="sub">${text(detail)}</div>` : ''}
+      </div>`;
     }).join('');
+    const addr = String(order.addressDetail || order.address || '').trim();
+    const delivery = String(order.deliveryName || order.deliveryType || '').trim();
 
-    const slipHtml = `<!DOCTYPE html><html><head><title>Order ${order.id}</title><style>body{font-family:Arial;padding:18px;color:#222}h2{margin-bottom:0}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border-bottom:1px solid #ddd;padding:8px;text-align:left}.total{font-size:20px;font-weight:bold;margin-top:18px}</style></head><body><h2>Warisan Cafe</h2><p>Order Slip</p><hr><p><b>Order ID:</b> ${order.id}<br><b>Customer:</b> ${text(order.customer)}<br><b>Phone:</b> ${text(order.phone)}<br><b>Batch:</b> ${AG.batchName(order.batchId)}<br><b>Status:</b> ${AG.STEP_LABELS[order.status] || order.status}<br><b>Order Notes:</b> ${text(order.orderNotes || order.notes)}</p><table><tr><th>Item</th><th>Qty</th><th>Amount</th></tr>${rows}</table><p class="total">Total: RM ${Number(order.total || 0).toFixed(2)}</p></body></html>`;
+    const slipHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${text(order.id)}</title>
+  <style>
+    @page { size: 58mm auto; margin: 2mm; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      width: 54mm;
+      max-width: 54mm;
+      margin: 0 auto;
+      padding: 2mm 1.5mm 8mm;
+      font-family: "Courier New", Courier, ui-monospace, monospace;
+      font-size: 11px;
+      line-height: 1.28;
+      color: #000;
+      background: #fff;
+    }
+    .c { text-align: center; }
+    .brand { font-size: 13px; font-weight: 700; letter-spacing: .4px; }
+    .subhead { font-size: 10px; }
+    .dash { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
+    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+    .kv { margin: 1px 0; word-break: break-word; }
+    .kv b { font-weight: 700; }
+    .item { margin: 5px 0; }
+    .item .row span:first-child { flex: 1; word-break: break-word; }
+    .amt { white-space: nowrap; font-weight: 700; }
+    .sub { font-size: 10px; padding-left: 14px; word-break: break-word; }
+    .total { font-size: 13px; font-weight: 700; }
+    .cut { text-align: center; font-size: 10px; margin-top: 8px; }
+    @media print {
+      body { width: 54mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="c brand">WARISAN CAFE</div>
+  <div class="c subhead">ORDER TICKET</div>
+  <div class="c subhead">${text(when)}</div>
+  <hr class="dash">
+  <div class="kv"><b>No</b> ${text(order.id)}</div>
+  <div class="kv"><b>Name</b> ${text(order.customer)}</div>
+  <div class="kv"><b>Tel</b> ${text(order.phone)}</div>
+  ${addr ? `<div class="kv"><b>Addr</b> ${text(addr)}</div>` : ''}
+  ${delivery ? `<div class="kv"><b>Del</b> ${text(delivery)}</div>` : ''}
+  <div class="kv"><b>Batch</b> ${text(AG.batchName(order.batchId))}</div>
+  <hr class="dash">
+  ${items}
+  <hr class="dash">
+  <div class="row total"><span>TOTAL</span><span>${rm(order.total)}</span></div>
+  ${order.orderNotes || order.notes ? `<div class="kv" style="margin-top:6px"><b>Note</b> ${text(order.orderNotes || order.notes)}</div>` : ''}
+  <div class="cut">* 58mm *</div>
+</body>
+</html>`;
 
-    const printWindow = window.open('', '_blank', 'width=420,height=600');
+    const printWindow = window.open('', '_blank', 'width=260,height=640');
     if (!printWindow) {
       AG.toast('Print blocked', 'Please allow popup window to print order slip.');
       return;
@@ -419,32 +495,9 @@
     });
   }
 
-  /* ── Auto-print on new order ── */
+  /* ── New-order alert ── */
   let knownOrderIds = new Set();
   let autoPrintReady = false;
-
-  function autoPrintEnabled() {
-    return localStorage.getItem('gepukgo_autoprint') === 'true';
-  }
-
-  function selectedPrinter() {
-    return localStorage.getItem('gepukgo_printer') || '';
-  }
-
-  async function printToServer(order) {
-    try {
-      const resp = await fetch('/api/print', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order, printerName: selectedPrinter() }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || 'Print failed');
-      AG.toast('Printed', 'Order ' + order.id + ' sent to printer.');
-    } catch (err) {
-      AG.toast('Print error', err.message || 'Could not reach print server.');
-    }
-  }
 
   function playBeep() {
     try {
@@ -475,62 +528,8 @@
         knownOrderIds.add(order.id);
         playBeep();
         showNewOrderBanner(order);
-        if (autoPrintEnabled() && order.paymentStatus === 'verified') printToServer(order);
       }
     });
-  }
-
-  async function loadPrinters() {
-    const sel = document.getElementById('printerSelect');
-    if (!sel) return;
-    try {
-      const resp = await fetch('/api/printers');
-      const data = await resp.json();
-      sel.innerHTML = '<option value="">Default Printer</option>';
-      (data.printers || []).forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p; opt.textContent = p;
-        if (p === selectedPrinter()) opt.selected = true;
-        sel.appendChild(opt);
-      });
-    } catch (_) {
-      sel.innerHTML = '<option value="">Default Printer</option>';
-    }
-  }
-
-  function setupPrintControls() {
-    const toggle = document.getElementById('autoPrintToggle');
-    const sel    = document.getElementById('printerSelect');
-    const testBtn = document.getElementById('testPrintBtn');
-
-    if (toggle) {
-      toggle.checked = autoPrintEnabled();
-      toggle.addEventListener('change', () => {
-        localStorage.setItem('gepukgo_autoprint', toggle.checked);
-        AG.toast('Auto-print', toggle.checked ? 'Auto-print enabled.' : 'Auto-print disabled.');
-      });
-    }
-
-    if (sel) {
-      sel.addEventListener('change', () => {
-        localStorage.setItem('gepukgo_printer', sel.value);
-      });
-    }
-
-    if (testBtn) {
-      testBtn.addEventListener('click', async () => {
-        const fakeOrder = {
-          id: 'TEST-001', customer: 'Test Customer', phone: '012-3456789',
-          batchName: 'Lunch 12–2pm', total: 12.50, createdAt: new Date().toISOString(),
-          items: [{ name: 'Warisan Set', quantity: 1, price: 8.50, variation: 'Regular' },
-                  { name: 'Nasi Putih', quantity: 1, price: 2.00 },
-                  { name: 'Air Sirap', quantity: 1, price: 2.00 }],
-        };
-        await printToServer(fakeOrder);
-      });
-    }
-
-    loadPrinters();
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
@@ -538,7 +537,6 @@
     const session = await AG.requireRole(['admin']);
     if (!session) return;
     setupEvents();
-    setupPrintControls();
     const closeReceipt = document.getElementById('closeReceiptModal');
     const receiptModal = document.getElementById('receiptModal');
     if (closeReceipt && receiptModal) {
@@ -554,7 +552,7 @@
       });
     }
 
-    /* Seed known IDs from current orders so existing ones don't trigger auto-print */
+    /* Seed known IDs so existing orders don't trigger the banner */
     AG.orders().forEach(o => knownOrderIds.add(o.id));
     autoPrintReady = true;
 

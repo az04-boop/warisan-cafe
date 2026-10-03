@@ -235,14 +235,6 @@
           font-size: 14px;
         }
       }
-      /* ── Auto-print panel ── */
-      .print-panel{background:#fff;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.07);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;flex-wrap:wrap;gap:14px}
-      .print-panel .print-label{font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px;white-space:nowrap}
-      .form-switch .form-check-input{width:2.4em;height:1.3em;cursor:pointer}
-      .form-check-input:checked{background-color:#c62828;border-color:#c62828}
-      #printerSelect{min-width:180px;border:1.5px solid #e0e0e0;border-radius:10px;padding:6px 12px;font-size:13px;outline:none}
-      #testPrintBtn{font-size:13px;padding:6px 14px;border-radius:10px;border:1.5px solid #c62828;color:#c62828;background:#fff;font-weight:700;cursor:pointer;white-space:nowrap}
-      #testPrintBtn:hover{background:#c62828;color:#fff}
       /* ── New-order banner ── */
       #newOrderBanner{display:none;position:fixed;top:18px;right:18px;z-index:9999;background:#22c55e;color:#fff;font-weight:700;font-size:14px;padding:12px 20px;border-radius:14px;box-shadow:0 6px 24px rgba(34,197,94,.35);animation:slideIn .3s ease}
       @keyframes slideIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
@@ -276,16 +268,6 @@
       <div id="newOrderBanner"></div>
 
       <main class="admin-main">
-
-        <div class="print-panel">
-          <span class="print-label"><i class="bi bi-printer-fill" style="color:#c62828"></i> Auto-Print</span>
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="autoPrintToggle" title="Enable auto-print on new order">
-          </div>
-          <select id="printerSelect" title="Select printer"></select>
-          <button id="testPrintBtn" type="button"><i class="bi bi-printer me-1"></i>Test Print</button>
-          <span style="font-size:12px;color:#6b7280;margin-left:auto">Prints automatically when a new order arrives · local server</span>
-        </div>
 
         <div class="dashboard-top">
           <div>
