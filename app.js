@@ -18,6 +18,7 @@ const AG = (() => {
     delivered: "Delivered",
   };
   const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
+  const RECEIPT_PDF_MAX_BYTES = 200 * 1024;
   const RECEIPT_EXT_TO_KIND = {
     jpg: "jpeg",
     jpeg: "jpeg",
@@ -260,7 +261,8 @@ const AG = (() => {
       else needed = [];
     }
     if (needed.length) await init(needed);
-    return s;
+    if (s.role === "customer") await requireEmailPhone();
+    return session() || s;
   }
 
   function header(title, role = "") {
@@ -515,9 +517,117 @@ const AG = (() => {
   function customerContact(s = session()) {
     const p = s || {};
     return {
+      email: String(p.email || "").trim(),
       phone: String(p.phone || "").trim(),
       address: String(p.addressDetail || p.address || "").trim(),
     };
+  }
+
+  function needsCustomerIdentity(s = session()) {
+    const c = customerContact(s);
+    return !c.email || !c.phone;
+  }
+
+  function validCustomerEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+  }
+
+  function validCustomerPhone(phone) {
+    const digits = String(phone || "").replace(/\D/g, "");
+    return digits.length >= 8 && digits.length <= 15;
+  }
+
+  let identityPrompt = null;
+
+  function openIdentityOverlay(s, onSaved) {
+    let overlay = document.getElementById("agIdentityOverlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "agIdentityOverlay";
+      overlay.innerHTML =
+        '<style>' +
+        "#agIdentityOverlay{position:fixed;inset:0;z-index:1080;background:rgba(20,16,16,.55);display:flex;align-items:center;justify-content:center;padding:18px}" +
+        "#agIdentityCard{width:min(100%,400px);background:#fffdf8;border-radius:22px;box-shadow:0 14px 40px rgba(27,122,61,.18);padding:22px 20px 18px}" +
+        "#agIdentityCard h5{font-weight:800;margin:0 0 6px;text-align:center}" +
+        "#agIdentityCard p{color:#6c757d;font-size:.86rem;text-align:center;margin:0 0 16px}" +
+        "#agIdentityCard label{font-size:.8rem;font-weight:700;margin-bottom:4px}" +
+        "#agIdentityCard .form-control{border-radius:12px}" +
+        "#agIdentityErr{display:none;color:#c62828;font-size:.8rem;margin:0 0 10px;text-align:center}" +
+        "</style>" +
+        '<div id="agIdentityCard" role="dialog" aria-modal="true" aria-labelledby="agIdentityTitle">' +
+        '<h5 id="agIdentityTitle">Complete your details</h5>' +
+        "<p>Email and phone number are required before you can order.</p>" +
+        '<div class="mb-3 text-start"><label class="form-label" for="agIdentityEmail">Email</label>' +
+        '<input id="agIdentityEmail" type="email" class="form-control" autocomplete="email" required></div>' +
+        '<div class="mb-3 text-start"><label class="form-label" for="agIdentityPhone">Phone</label>' +
+        '<input id="agIdentityPhone" type="tel" class="form-control" placeholder="e.g. 0123456789" autocomplete="tel" required></div>' +
+        '<p id="agIdentityErr"></p>' +
+        '<button type="button" class="btn btn-brand w-100 py-2" id="agIdentitySave">Save and continue</button>' +
+        "</div>";
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = "flex";
+    document.body.style.overflow = "hidden";
+    const emailInput = document.getElementById("agIdentityEmail");
+    const phoneInput = document.getElementById("agIdentityPhone");
+    const err = document.getElementById("agIdentityErr");
+    const saveBtn = document.getElementById("agIdentitySave");
+    const existingEmail = String((s && s.email) || "").trim();
+    emailInput.value = existingEmail;
+    emailInput.readOnly = Boolean(existingEmail);
+    phoneInput.value = String((s && s.phone) || "").trim();
+    err.style.display = "none";
+    phoneInput.focus();
+
+    saveBtn.onclick = async () => {
+      const email = emailInput.value.trim();
+      const phone = phoneInput.value.trim();
+      if (!validCustomerEmail(email)) {
+        err.textContent = "Please enter a valid email address.";
+        err.style.display = "block";
+        return;
+      }
+      if (!validCustomerPhone(phone)) {
+        err.textContent = "Please enter a valid phone number.";
+        err.style.display = "block";
+        return;
+      }
+      try {
+        saveBtn.disabled = true;
+        await updateCustomerProfile({
+          email,
+          phone,
+          name: (s && s.name) || "Customer",
+          address: (s && (s.addressDetail || s.address)) || "",
+          addressDetail: (s && (s.addressDetail || s.address)) || "",
+          addressArea: (s && s.addressArea) || "",
+        });
+        overlay.style.display = "none";
+        document.body.style.overflow = "";
+        if (onSaved) onSaved();
+      } catch (e) {
+        err.textContent = e.message || "Could not save your details.";
+        err.style.display = "block";
+      } finally {
+        saveBtn.disabled = false;
+      }
+    };
+  }
+
+  function requireEmailPhone() {
+    const s = session();
+    if (!s || s.role !== "customer") return Promise.resolve(s);
+    const page = String(location.pathname || "").toLowerCase();
+    if (page.endsWith("cust-profile1.html")) return Promise.resolve(s);
+    if (!needsCustomerIdentity(s)) return Promise.resolve(s);
+    if (identityPrompt) return identityPrompt;
+    identityPrompt = new Promise((resolve) => {
+      openIdentityOverlay(s, () => {
+        identityPrompt = null;
+        resolve(session());
+      });
+    });
+    return identityPrompt;
   }
 
   function assertCustomerContact(s = session(), extra = {}) {
@@ -613,10 +723,19 @@ const AG = (() => {
       ? (addressDetail ? addressDetail + ", " + addressArea : addressArea)
       : (data.address || s.address || "");
     const phone = data.phone !== undefined ? data.phone : s.phone;
-    assertCustomerContact(s, { phone, address: addressDetail || address });
+    const email = String(
+      data.email !== undefined ? data.email : s.email || "",
+    ).trim();
+    if (!validCustomerEmail(email)) {
+      throw new Error("Please add a valid email address.");
+    }
+    if (!validCustomerPhone(phone)) {
+      throw new Error("Please add a valid phone number.");
+    }
     const updated = {
       ...s,
       name: data.name || s.name || "Customer",
+      email,
       phone: String(phone || "").trim(),
       address: String(address || "").trim(),
       addressArea,
@@ -1155,6 +1274,9 @@ const AG = (() => {
       throw new Error("Customers cannot mark a payment as paid or verified.");
     }
     const contact = assertCustomerContact(s);
+    if (!validCustomerEmail(s.email)) {
+      throw new Error("Please add your email address before ordering.");
+    }
     if (useFirebase) {
       if (!auth || !auth.currentUser) {
         throw new Error("Please sign in again before placing an order.");
@@ -1360,12 +1482,7 @@ const AG = (() => {
       );
     }
     const mimeKind = receiptKindFromMime(file.type);
-    if (!mimeKind) {
-      throw new Error(
-        "This file type is not allowed. Upload a screenshot (JPG, JPEG, PNG) or PDF.",
-      );
-    }
-    if (extKind !== mimeKind) {
+    if (mimeKind && extKind !== mimeKind) {
       throw new Error(
         "File extension and file type do not match. Receipt rejected.",
       );
@@ -1380,6 +1497,11 @@ const AG = (() => {
     if (magicKind !== extKind) {
       throw new Error(
         "The file content does not match the selected format. Receipt rejected.",
+      );
+    }
+    if (magicKind === "pdf" && file.size > RECEIPT_PDF_MAX_BYTES) {
+      throw new Error(
+        "PDF must be 200 KB or smaller. Compress it, or upload a JPG or PNG screenshot.",
       );
     }
     const mime =
@@ -1408,7 +1530,7 @@ const AG = (() => {
 
   async function encodeReceiptPreview(file, kind) {
     if (kind === "pdf") {
-      if (file.size > 700 * 1024) return "";
+      if (file.size > RECEIPT_PDF_MAX_BYTES) return "";
       return fileToDataUrl(file);
     }
     return compressImageToBase64(file, {
@@ -1484,9 +1606,6 @@ const AG = (() => {
       throw new Error("No pending checkout found. Return to cart and try again.");
     }
     const validated = await validateReceiptFile(file);
-    if (validated.kind === "pdf" && file.size > 220 * 1024) {
-      throw new Error("PDF is too large for this plan. Upload a JPG or PNG screenshot of the receipt.");
-    }
     const receiptId = makeId("RCP");
     const uploadedAt = nowISO();
     let receiptDataUrl = "";
@@ -2002,6 +2121,8 @@ const AG = (() => {
     requireRole,
     getCustomerProfile,
     needsCustomerContact,
+    needsCustomerIdentity,
+    requireEmailPhone,
     riders,
     saveRider,
     deleteRider,

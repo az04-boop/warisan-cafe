@@ -192,9 +192,7 @@
               password,
             });
             AG.toast("Account created", "You are logged in.");
-            location.href = AG.needsCustomerContact()
-              ? "cust-profile1.html?need=contact"
-              : "cust-menu1.html";
+            location.href = "cust-menu1.html";
           } catch (err) {
             AG.toast("Sign up failed", err.message);
           } finally {

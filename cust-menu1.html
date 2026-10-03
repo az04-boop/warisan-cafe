@@ -271,10 +271,6 @@
       (async () => {
         const s = await AG.requireRole(["customer"], ["menu"]);
         if (!s) return;
-        if (AG.needsCustomerContact(s)) {
-          location.href = "cust-profile1.html?need=contact";
-          return;
-        }
         document.getElementById("header").innerHTML = AG.header(
           "Warisan Cafe",
           "customer",
