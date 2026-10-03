@@ -35,7 +35,15 @@ service cloud.firestore {
       allow read: if signedIn()
         && (request.auth.uid == staffId
           || resource.data.email == request.auth.token.email);
-      allow write: if isAdmin();
+      allow create: if signedIn()
+        && request.auth.uid == staffId
+        && request.auth.token.email in [
+          "nazeerah18247@gmail.com",
+          "muhdhaikal1407@gmail.com"
+        ]
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role in ["admin", "rider"];
+      allow update, delete: if isAdmin();
     }
 
     match /menu/{menuId} {
