@@ -90,12 +90,19 @@
   }
 
   function rm(n) {
-    return 'RM ' + Number(n || 0).toFixed(2);
+    return 'RM' + Number(n || 0).toFixed(2);
   }
 
   function printOrder(id) {
     const order = AG.orders().find(item => item.id === id);
     if (!order) return;
+
+    function esc(s) {
+      return String(s == null || s === '' ? '-' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
 
     const when = order.createdAt
       ? new Date(order.createdAt).toLocaleString('en-MY', {
@@ -106,78 +113,101 @@
           hour12: true,
         })
       : '';
+
     const items = (order.items || []).map(item => {
-      const detail = [item.variationText || item.variation || '', item.note ? 'Note: ' + item.note : '']
-        .filter(Boolean)
-        .join(' · ');
-      const amount = Number(item.price || 0) * Number(item.quantity || 1);
+      const qty = Number(item.quantity || 1);
+      const unit = Number(item.price || 0);
+      const name = String(item.name || 'Item');
+      const fee = name.toLowerCase().includes('delivery');
+      const detail = fee
+        ? ''
+        : [item.variationText || item.variation || '', item.note || '']
+            .filter(t => t && String(t).trim() && String(t).trim() !== '-')
+            .join(', ');
       return `<div class="item">
-        <div class="row"><span>${text(item.quantity)}x ${text(item.name)}</span><span class="amt">${rm(amount)}</span></div>
-        ${detail ? `<div class="sub">${text(detail)}</div>` : ''}
+        <div class="iname">${esc(name)}${detail ? ' (' + esc(detail) + ')' : ''}</div>
+        <div class="iqty">${qty} x ${rm(unit)}</div>
       </div>`;
     }).join('');
+
     const addr = String(order.addressDetail || order.address || '').trim();
     const delivery = String(order.deliveryName || order.deliveryType || '').trim();
+    const note = String(order.orderNotes || order.notes || '').trim();
+    const noteOk = note && note !== '-';
 
     const slipHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${text(order.id)}</title>
+  <title>${esc(order.id)}</title>
   <style>
-    @page { size: 58mm auto; margin: 2mm; }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
-    body {
-      width: 54mm;
-      max-width: 54mm;
-      margin: 0 auto;
-      padding: 2mm 1.5mm 8mm;
-      font-family: "Courier New", Courier, ui-monospace, monospace;
-      font-size: 11px;
-      line-height: 1.28;
-      color: #000;
+    @page { size: 58mm auto; margin: 0; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 58mm;
       background: #fff;
+      color: #111;
     }
-    .c { text-align: center; }
-    .brand { font-size: 13px; font-weight: 700; letter-spacing: .4px; }
-    .subhead { font-size: 10px; }
-    .dash { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
-    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
-    .kv { margin: 1px 0; word-break: break-word; }
-    .kv b { font-weight: 700; }
-    .item { margin: 5px 0; }
-    .item .row span:first-child { flex: 1; word-break: break-word; }
-    .amt { white-space: nowrap; font-weight: 700; }
-    .sub { font-size: 10px; padding-left: 14px; word-break: break-word; }
-    .total { font-size: 13px; font-weight: 700; }
-    .cut { text-align: center; font-size: 10px; margin-top: 8px; }
-    @media print {
-      body { width: 54mm; }
+    .ticket {
+      width: 48mm;
+      margin: 3mm auto 10mm;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.35;
+      letter-spacing: 0;
+      word-spacing: normal;
+      text-align: left;
+      white-space: normal;
+    }
+    .shop {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .muted {
+      text-align: center;
+      font-size: 11px;
+    }
+    .dots {
+      border: 0;
+      border-top: 1px dotted #111;
+      margin: 7px 0;
+    }
+    .meta { margin: 1px 0; }
+    .item { margin: 8px 0; }
+    .iname { font-weight: 700; }
+    .iqty { font-size: 11px; margin-top: 1px; }
+    .due {
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
-  <div class="c brand">WARISAN CAFE</div>
-  <div class="c subhead">ORDER TICKET</div>
-  <div class="c subhead">${text(when)}</div>
-  <hr class="dash">
-  <div class="kv"><b>No</b> ${text(order.id)}</div>
-  <div class="kv"><b>Name</b> ${text(order.customer)}</div>
-  <div class="kv"><b>Tel</b> ${text(order.phone)}</div>
-  ${addr ? `<div class="kv"><b>Addr</b> ${text(addr)}</div>` : ''}
-  ${delivery ? `<div class="kv"><b>Del</b> ${text(delivery)}</div>` : ''}
-  <div class="kv"><b>Batch</b> ${text(AG.batchName(order.batchId))}</div>
-  <hr class="dash">
-  ${items}
-  <hr class="dash">
-  <div class="row total"><span>TOTAL</span><span>${rm(order.total)}</span></div>
-  ${order.orderNotes || order.notes ? `<div class="kv" style="margin-top:6px"><b>Note</b> ${text(order.orderNotes || order.notes)}</div>` : ''}
-  <div class="cut">* 58mm *</div>
+  <div class="ticket">
+    <div class="shop">WARISAN CAFE</div>
+    <div class="muted">ORDER TICKET</div>
+    <div class="muted">${esc(when)}</div>
+    <hr class="dots">
+    <div class="meta">Order: ${esc(order.id)}</div>
+    <div class="meta">Name: ${esc(order.customer)}</div>
+    <div class="meta">Tel: ${esc(order.phone)}</div>
+    ${addr ? `<div class="meta">Addr: ${esc(addr)}</div>` : ''}
+    ${delivery ? `<div class="meta">${esc(delivery)}</div>` : ''}
+    <div class="meta">Batch: ${esc(AG.batchName(order.batchId))}</div>
+    <hr class="dots">
+    ${items}
+    <hr class="dots">
+    <div class="due">Amount due<br>${rm(order.total)}</div>
+    ${noteOk ? `<div class="meta" style="margin-top:8px">Note: ${esc(note)}</div>` : ''}
+  </div>
 </body>
 </html>`;
 
-    const printWindow = window.open('', '_blank', 'width=260,height=640');
+    const printWindow = window.open('', '_blank', 'width=280,height=700');
     if (!printWindow) {
       AG.toast('Print blocked', 'Please allow popup window to print order slip.');
       return;
