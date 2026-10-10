@@ -24,9 +24,10 @@
     const search = (els.orderSearchInput.value || '').trim().toLowerCase();
     const statusFilter = els.orderStatusFilter.value || 'all';
     const sortBy = els.orderSortSelect.value || 'newest';
-    let list = [...AG.orders()].filter((order) =>
-      AG.isLiveDashboardOrder ? AG.isLiveDashboardOrder(order) : true,
-    );
+    let list = [...AG.orders()].filter((order) => {
+      const live = AG.isLiveDashboardOrder ? AG.isLiveDashboardOrder(order) : true;
+      return live && order.paymentStatus === 'verified';
+    });
 
     if (statusFilter !== 'all') {
       list = list.filter(order => AG.kitchenStatus(order.status) === statusFilter || order.status === statusFilter);
@@ -362,7 +363,6 @@
   function renderOrders() {
     if (!els.ordersBody) return;
 
-    const all = AG.orders();
     const list = getFilteredOrders();
     const search = (els.orderSearchInput.value || '').trim();
     const statusFilter = els.orderStatusFilter.value || 'all';
@@ -375,12 +375,13 @@
     els.showingOrderCount.textContent = list.length;
     els.ordersBody.innerHTML = '';
 
-    if (!all.length) {
-      els.ordersBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No orders yet.</td></tr>';
-      return;
-    }
     if (!list.length) {
-      els.ordersBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No matching orders found.</td></tr>';
+      const empty = hasFilter
+        ? 'No matching verified orders found.'
+        : pending.length
+          ? 'No verified orders yet. Unverified payments stay in the queue above.'
+          : 'No verified orders yet.';
+      els.ordersBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">${empty}</td></tr>`;
       return;
     }
 

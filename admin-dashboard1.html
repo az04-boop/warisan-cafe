@@ -276,7 +276,8 @@
           <div>
             <h2 class="fw-bold mb-1">Orders Dashboard</h2>
             <p class="text-muted mb-0">
-              Live orders from the last 24 hours. Older orders are in Reports.
+              Live kitchen orders from the last 24 hours after payment is verified.
+              Unverified payments stay in the queue. Older verified orders are in Reports.
             </p>
           </div>
           <div class="badge-red">
@@ -308,7 +309,7 @@
             <div>
               <h4 class="fw-bold mb-1">Orders</h4>
               <p class="small-muted mb-0">
-                Update process status and print order slip.
+                Verified orders only. Update kitchen status and print order slip.
               </p>
             </div>
             <div class="badge-red">
@@ -330,7 +331,6 @@
               <label class="form-label fw-semibold">Filter Status</label>
               <select id="orderStatusFilter" class="form-select">
                 <option value="all">All Status</option>
-                <option value="awaiting_verification">Awaiting Verification</option>
                 <option value="preparing">Preparing</option>
                 <option value="ready">Ready</option>
                 <option value="delivered">Delivered</option>
