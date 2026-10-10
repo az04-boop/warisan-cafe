@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ms">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#1b7a3d" />
+    <title>Rider Report — Warisan Cafe</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      .rider-stat {
+        background: #fff;
+        border-radius: 14px;
+        padding: 12px;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 14px;
+      }
+      .rider-stat .num {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: var(--brand);
+      }
+      .rider-stat .lbl {
+        font-size: 0.68rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        font-weight: 600;
+      }
+      .job-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 12px;
+        border-left: 4px solid var(--green);
+      }
+      .job-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.88rem;
+        margin-bottom: 6px;
+      }
+      .job-row i {
+        width: 22px;
+        color: var(--brand);
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-shell" style="padding-bottom: 30px">
+      <div id="header"></div>
+      <div class="page-pad">
+        <p class="small-muted mb-3">Delivered jobs only.</p>
+        <div class="summary-card mb-3 p-3" style="background:#fff;border-radius:16px;box-shadow:var(--shadow-sm)">
+          <label class="form-label fw-bold mb-1" for="activeRiderSelect">Report for rider</label>
+          <select id="activeRiderSelect" class="form-select mb-3"></select>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label fw-semibold" for="fromDate">From</label>
+              <input id="fromDate" type="date" class="form-control" />
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold" for="toDate">To</label>
+              <input id="toDate" type="date" class="form-control" />
+            </div>
+          </div>
+          <button id="loadBtn" class="btn btn-brand w-100 mt-3" type="button">
+            Show report
+          </button>
+          <button id="downloadBtn" class="btn btn-outline-secondary w-100 mt-2" type="button" disabled>
+            Download Excel
+          </button>
+        </div>
+
+        <div class="rider-stat">
+          <div class="num" id="statOrders">0</div>
+          <div class="lbl">Delivered orders</div>
+        </div>
+
+        <div id="jobPreview">
+          <p class="small-muted mb-0">Choose dates, then Show report.</p>
+        </div>
+        <p class="small-muted mt-2 mb-0" id="reportStatus"></p>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      (async () => {
+        const s = await AG.requireRole(["rider"], ["riders"]);
+        if (!s) return;
+        document.getElementById("header").innerHTML = AG.header(
+          "Rider Report",
+          "rider",
+        );
+        const fromEl = document.getElementById("fromDate");
+        const toEl = document.getElementById("toDate");
+        const sel = document.getElementById("activeRiderSelect");
+        const status = document.getElementById("reportStatus");
+        const loadBtn = document.getElementById("loadBtn");
+        const downloadBtn = document.getElementById("downloadBtn");
+        let lastReport = null;
+        const today = new Date();
+        const from = new Date();
+        from.setDate(today.getDate() - 7);
+        const isoDay = (d) => d.toISOString().slice(0, 10);
+        fromEl.value = isoDay(from);
+        toEl.value = isoDay(today);
+
+        function renderRiderSelect() {
+          const list = AG.riders();
+          const current = AG.get("agActiveRiderId", "");
+          sel.innerHTML = list.length
+            ? list
+                .map(
+                  (r) =>
+                    `<option value="${r.id}">${r.name} · ${r.phone}</option>`,
+                )
+                .join("")
+            : '<option value="">All riders</option>';
+          if (current && list.some((r) => r.id === current)) sel.value = current;
+        }
+        sel.addEventListener("change", () => AG.set("agActiveRiderId", sel.value));
+        renderRiderSelect();
+        window.addEventListener("ag-data", renderRiderSelect);
+
+        function rangeIso() {
+          const start = new Date(fromEl.value + "T00:00:00");
+          const end = new Date(toEl.value + "T23:59:59.999");
+          if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            throw new Error("Please choose a valid date range.");
+          }
+          if (start > end) throw new Error("From date must be before To date.");
+          return { from: start.toISOString(), to: end.toISOString() };
+        }
+
+        function selectedRider() {
+          const id = sel.value;
+          return AG.riders().find((r) => r.id === id) || null;
+        }
+
+        function escapeHtml(value) {
+          return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+        }
+
+        function renderReport(report) {
+          lastReport = report;
+          document.getElementById("statOrders").textContent =
+            report.deliveredOrders || 0;
+          const jobsEl = document.getElementById("jobPreview");
+          const rows = report.rows || [];
+          jobsEl.innerHTML = rows.length
+            ? rows
+                .map((r) => {
+                  const callHref = AG.callCustomerHref({
+                    id: r.id,
+                    phone: r.phone,
+                  });
+                  return `<div class="job-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <strong>Order ${escapeHtml(r.id)}</strong>
+                    </div>
+                    <div class="job-row"><i class="bi bi-person-fill"></i> ${escapeHtml(r.customer)}</div>
+                    <div class="job-row"><i class="bi bi-geo-alt-fill"></i> <strong>${escapeHtml(r.address)}</strong></div>
+                    <div class="job-row"><i class="bi bi-bag-fill"></i> ${escapeHtml(r.items)}</div>
+                    <div class="d-flex justify-content-end mt-2">
+                      <a href="${escapeHtml(callHref)}" class="btn btn-sm btn-outline-secondary" style="border-radius:10px;padding:6px 10px;" title="Call customer">
+                        <i class="bi bi-telephone-fill"></i>
+                      </a>
+                    </div>
+                  </div>`;
+                })
+                .join("")
+            : '<p class="small-muted mb-0">No delivered jobs in this range.</p>';
+          downloadBtn.disabled = !rows.length;
+        }
+
+        loadBtn.addEventListener("click", async () => {
+          try {
+            loadBtn.disabled = true;
+            status.textContent = "Loading delivered jobs…";
+            const { from, to } = rangeIso();
+            const report = await AG.fetchDeliveredOrdersForReport(
+              from,
+              to,
+              selectedRider(),
+            );
+            renderReport(report);
+            status.textContent =
+              (report.deliveredOrders || 0) + " delivered order(s).";
+          } catch (err) {
+            status.textContent = err.message || "Report failed.";
+            AG.toast("Report failed", err.message || "Could not load report.");
+          } finally {
+            loadBtn.disabled = false;
+          }
+        });
+
+        downloadBtn.addEventListener("click", () => {
+          if (!lastReport) return;
+          const file =
+            "warisan-rider-" + fromEl.value + "-to-" + toEl.value + ".xlsx";
+          AG.downloadRiderExcel(lastReport, file);
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -108,6 +108,32 @@ a:hover { color: var(--brand-dark); }
 }
 .app-header .icon-btn:hover { background: rgba(255,255,255,.28); transform: translateY(-1px); }
 .app-header .icon-btn i { font-size: 1.1rem; }
+.rider-nav-panel {
+  display: none;
+  flex-direction: column;
+  margin-top: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.rider-nav-panel.is-open {
+  display: flex;
+}
+.rider-nav-panel a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rider-nav-panel a:hover,
+.rider-nav-panel a.active {
+  background: rgba(0, 0, 0, 0.22);
+  color: #fff;
+}
+
 .app-header .role-chip {
   background: rgba(255,255,255,.2);
   border: 1px solid rgba(255,255,255,.28);

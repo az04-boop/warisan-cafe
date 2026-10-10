@@ -287,7 +287,29 @@ const AG = (() => {
         : hour < 18
           ? "Good Afternoon"
           : "Good Evening";
-    return `<div class="app-header"><div class="header-row"><a class="brand" href="${home}"><img src="images/logo.png?v=warisan" alt="Warisan Cafe"><div class="brand-text"><span class="greeting">${greet}, ${firstName}</span><span class="brand-name">${title}</span></div></a><div class="header-actions"><span class="role-chip">${displayRole}</span><button class="icon-btn" type="button" title="Logout" onclick="AG.logout()"><i class="bi bi-box-arrow-right"></i></button></div></div></div>`;
+    const brandText =
+      role === "rider"
+        ? `<span class="brand-name">${title}</span>`
+        : `<span class="greeting">${greet}, ${firstName}</span><span class="brand-name">${title}</span>`;
+    const page = (location.pathname.split("/").pop() || "").toLowerCase();
+    const riderMenu =
+      role === "rider"
+        ? `<button class="icon-btn" type="button" data-rider-nav-toggle title="Menu" aria-expanded="false" aria-controls="riderNavPanel"><i class="bi bi-list"></i></button>`
+        : "";
+    const riderNav =
+      role === "rider"
+        ? `<nav id="riderNavPanel" class="rider-nav-panel" hidden>
+            <a href="rider-dashboard1.html"${page.includes("rider-dashboard") ? ' class="active"' : ""}><i class="bi bi-bicycle"></i> Jobs</a>
+            <a href="rider-reports1.html"${page.includes("rider-report") ? ' class="active"' : ""}><i class="bi bi-clipboard-data"></i> Report</a>
+          </nav>`
+        : "";
+    return `<div class="app-header"><div class="header-row"><a class="brand" href="${home}"><img src="images/logo.png?v=warisan" alt="Warisan Cafe"><div class="brand-text">${brandText}</div></a><div class="header-actions">${riderMenu}<span class="role-chip">${displayRole}</span><button class="icon-btn" type="button" title="Logout" onclick="AG.logout()"><i class="bi bi-box-arrow-right"></i></button></div></div>${riderNav}</div>`;
+  }
+
+  function callCustomerHref(order) {
+    const digits = String((order && order.phone) || "").replace(/[^\d+]/g, "");
+    if (digits) return "tel:" + digits;
+    return "rider-chat1.html?order=" + encodeURIComponent((order && order.id) || "");
   }
 
   async function initLocal() {
@@ -2141,6 +2163,179 @@ const AG = (() => {
     return { count, sales };
   }
 
+  function isDeliveryFeeItem(item) {
+    return !item || !item.name || String(item.name).startsWith("Delivery Fee");
+  }
+
+  function countOrderItems(o) {
+    return (o.items || []).reduce((n, i) => {
+      if (isDeliveryFeeItem(i)) return n;
+      return n + Number(i.quantity || 1);
+    }, 0);
+  }
+
+  function tallyOrderItems(list) {
+    const map = {};
+    (list || []).forEach((o) => {
+      (o.items || []).forEach((i) => {
+        if (isDeliveryFeeItem(i)) return;
+        const variation = i.variationText || i.variation || "";
+        const key = variation ? `${i.name} (${variation})` : String(i.name);
+        map[key] = (map[key] || 0) + Number(i.quantity || 1);
+      });
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, qty]) => ({ name, qty }));
+  }
+
+  function deliveredAtIso(o) {
+    const hist = (o.history || [])
+      .slice()
+      .reverse()
+      .find((h) => h.status === "delivered");
+    return (hist && hist.at) || o.updatedAt || o.createdAt || "";
+  }
+
+  function orderMatchesRider(o, rider) {
+    if (!rider) return true;
+    const id = String(rider.id || "");
+    const name = String(rider.name || "")
+      .trim()
+      .toLowerCase();
+    const phone = String(rider.phone || "").replace(/\D/g, "");
+    if (id && o.riderId && String(o.riderId) === id) return true;
+    if (name && String(o.riderName || "").trim().toLowerCase() === name)
+      return true;
+    const op = String(o.riderPhone || "").replace(/\D/g, "");
+    if (phone && op && (op.endsWith(phone) || phone.endsWith(op))) return true;
+    return false;
+  }
+
+  async function fetchDeliveredOrdersForReport(fromIso, toIso, rider) {
+    await init();
+    const s = session();
+    if (!s || (s.role !== "admin" && s.role !== "rider")) {
+      throw new Error("Only staff can open the rider report.");
+    }
+    const from = fromIso || ordersCutoffIso(7 * 24);
+    const to = toIso || new Date().toISOString();
+    const keep = (o) => {
+      if (kitchenStatus(o.status) !== "delivered") return false;
+      if (!orderMatchesRider(o, rider)) return false;
+      const stamp = deliveredAtIso(o);
+      const created = o.createdAt || stamp;
+      return (
+        (stamp >= from && stamp <= to) || (created >= from && created <= to)
+      );
+    };
+    const mapRow = (o) => ({
+      id: o.id,
+      deliveredAt: deliveredAtIso(o),
+      createdAt: o.createdAt || "",
+      customer: o.customer || "",
+      phone: o.phone || "",
+      address: o.address || "",
+      items: orderDetails(o),
+      itemQty: countOrderItems(o),
+      riderName: o.riderName || "",
+      total: Number(o.total || 0),
+      rawItems: o.items || [],
+    });
+    let rows = [];
+    if (!useFirebase || !db) {
+      rows = orders().filter(keep).map(mapRow);
+    } else {
+      let last = null;
+      for (let i = 0; i < 20; i++) {
+        let q = db
+          .collection("orders")
+          .where("createdAt", ">=", from)
+          .where("createdAt", "<=", to)
+          .orderBy("createdAt", "desc")
+          .limit(100);
+        if (last) q = q.startAfter(last);
+        const snap = await q.get();
+        if (snap.empty) break;
+        snap.forEach((doc) => {
+          const order = slimOrder({ id: doc.id, ...doc.data() });
+          last = doc;
+          if (keep(order)) rows.push(mapRow(order));
+        });
+        if (snap.size < 100) break;
+      }
+    }
+    const itemLines = tallyOrderItems(
+      rows.map((r) => ({ items: r.rawItems })),
+    );
+    const deliveredItems = rows.reduce(
+      (n, r) => n + Number(r.itemQty || 0),
+      0,
+    );
+    return {
+      rows,
+      itemLines,
+      deliveredOrders: rows.length,
+      deliveredItems,
+    };
+  }
+
+  function downloadRiderExcel(report, filename) {
+    const data = report || {};
+    const headers = [
+      "Order ID",
+      "Delivered at",
+      "Customer",
+      "Phone",
+      "Address",
+      "Items",
+      "Item qty",
+      "Rider",
+    ];
+    const table = (data.rows || []).map((r) => [
+      r.id,
+      r.deliveredAt ? new Date(r.deliveredAt).toLocaleString("en-MY") : "",
+      r.customer,
+      r.phone,
+      r.address,
+      r.items,
+      r.itemQty,
+      r.riderName,
+    ]);
+    const summary = [
+      [],
+      ["Delivered orders", data.deliveredOrders || 0],
+    ];
+    const name = filename || "warisan-rider-report.xlsx";
+    if (window.XLSX) {
+      const wb = window.XLSX.utils.book_new();
+      const ws = window.XLSX.utils.aoa_to_sheet([
+        headers,
+        ...table,
+        ...summary,
+      ]);
+      window.XLSX.utils.book_append_sheet(wb, ws, "Delivered");
+      window.XLSX.writeFile(wb, name);
+      return data;
+    }
+    const csv = [headers, ...table, ...summary]
+      .map((line) =>
+        line
+          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+          .join(","),
+      )
+      .join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name.replace(/\.xlsx$/i, ".csv");
+    a.click();
+    URL.revokeObjectURL(a.href);
+    return data;
+  }
+
   function getCustomerOrders(customer = session()) {
     const s = customer || {};
     return orders().filter(
@@ -2318,6 +2513,28 @@ const AG = (() => {
     return `Quick analysis: ${allOrders.length} orders, RM ${totalRevenue.toFixed(2)} sales, ${totalUnits} items sold. Best seller is ${best ? `${best[0]} (${best[1]} units)` : "-"}. Ask me about “groceries to buy”, “predict tomorrow orders”, or “peak batch”.`;
   }
 
+  document.addEventListener("click", (e) => {
+    const panel = document.getElementById("riderNavPanel");
+    const toggle = e.target.closest("[data-rider-nav-toggle]");
+    if (toggle && panel) {
+      const open = !panel.classList.contains("is-open");
+      panel.classList.toggle("is-open", open);
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      return;
+    }
+    if (
+      panel &&
+      panel.classList.contains("is-open") &&
+      !e.target.closest(".app-header")
+    ) {
+      panel.classList.remove("is-open");
+      panel.hidden = true;
+      const btn = document.querySelector("[data-rider-nav-toggle]");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
+  });
+
   window.addEventListener("storage", () =>
     checkNotifications().catch(() => {}),
   );
@@ -2338,6 +2555,7 @@ const AG = (() => {
     set: localSet,
     toast,
     header,
+    callCustomerHref,
     logout,
     session,
     requireRole,
@@ -2368,6 +2586,9 @@ const AG = (() => {
     fetchOrdersForReport,
     reportSalesSummary,
     downloadOrdersExcel,
+    countOrderItems,
+    fetchDeliveredOrdersForReport,
+    downloadRiderExcel,
     saveOrders,
     notifications,
     chatMessages,
