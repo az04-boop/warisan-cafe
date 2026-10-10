@@ -1,4 +1,4 @@
-const CACHE = "warisan-cafe-v21";
+const CACHE = "warisan-cafe-v22";
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
