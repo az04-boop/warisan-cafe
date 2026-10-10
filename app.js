@@ -2032,11 +2032,12 @@ const AG = (() => {
       paymentStatus: o.paymentStatus || "",
       notes: o.orderNotes || o.notes || "",
     });
+    const isVerified = (o) => o.paymentStatus === "verified";
     if (!useFirebase || !db) {
       return orders()
         .filter((o) => {
           const t = o.createdAt || "";
-          return t >= from && t <= to;
+          return isVerified(o) && t >= from && t <= to;
         })
         .map(mapRow);
     }
@@ -2053,12 +2054,19 @@ const AG = (() => {
       const snap = await q.get();
       if (snap.empty) break;
       snap.forEach((doc) => {
-        out.push(mapRow(slimOrder({ id: doc.id, ...doc.data() })));
+        const order = slimOrder({ id: doc.id, ...doc.data() });
         last = doc;
+        if (isVerified(order)) out.push(mapRow(order));
       });
       if (snap.size < 100) break;
     }
     return out;
+  }
+
+  function reportSalesSummary(rows) {
+    const list = rows || [];
+    const sales = list.reduce((sum, r) => sum + Number(r.total || 0), 0);
+    return { count: list.length, sales };
   }
 
   function downloadOrdersExcel(rows, filename) {
@@ -2092,15 +2100,25 @@ const AG = (() => {
       r.paymentStatus,
       r.notes,
     ]);
+    const { count, sales } = reportSalesSummary(rows);
+    const summary = [
+      [],
+      ["Verified orders", count],
+      ["Total sales (RM)", sales.toFixed(2)],
+    ];
     const name = filename || "warisan-orders.xlsx";
     if (window.XLSX) {
       const wb = window.XLSX.utils.book_new();
-      const ws = window.XLSX.utils.aoa_to_sheet([headers, ...table]);
+      const ws = window.XLSX.utils.aoa_to_sheet([
+        headers,
+        ...table,
+        ...summary,
+      ]);
       window.XLSX.utils.book_append_sheet(wb, ws, "Orders");
       window.XLSX.writeFile(wb, name);
-      return;
+      return { count, sales };
     }
-    const csv = [headers, ...table]
+    const csv = [headers, ...table, ...summary]
       .map((line) =>
         line
           .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
@@ -2115,6 +2133,7 @@ const AG = (() => {
     a.download = name.replace(/\.xlsx$/i, ".csv");
     a.click();
     URL.revokeObjectURL(a.href);
+    return { count, sales };
   }
 
   function getCustomerOrders(customer = session()) {
@@ -2342,6 +2361,7 @@ const AG = (() => {
     orders,
     isLiveDashboardOrder,
     fetchOrdersForReport,
+    reportSalesSummary,
     downloadOrdersExcel,
     saveOrders,
     notifications,
