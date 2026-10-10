@@ -173,6 +173,17 @@
     <script src="app.js"></script>
     <script>
       let activeFilter = "all";
+      function jobItems(o) {
+        return (o.items || [])
+          .filter(
+            (i) => !/^delivery(\s+fee)?\b/i.test(String(i.name || "").trim()),
+          )
+          .map((i) => {
+            const variation = i.variationText || i.variation || "";
+            return `${i.quantity}x ${i.name}${variation ? ` (${variation})` : ""}`;
+          })
+          .join(", ");
+      }
 
       (async () => {
         const s = await AG.requireRole(["rider"], ["orders", "riders"]);
@@ -243,7 +254,11 @@
 
         window.renderJobs = function () {
           const all = AG.orders();
-          const active = all.filter((o) => AG.kitchenStatus(o.status) === "ready");
+          const live = (o) =>
+            !AG.isLiveDashboardOrder || AG.isLiveDashboardOrder(o);
+          const active = all.filter(
+            (o) => AG.kitchenStatus(o.status) === "ready" && live(o),
+          );
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           document.getElementById("statReady").textContent = active.length;
@@ -261,7 +276,7 @@
 
           const wrap = document.getElementById("jobs");
           if (!list.length) {
-            wrap.innerHTML = `<div class="empty-state"><i class="bi bi-bicycle"></i><h6>No jobs available</h6><p>You're all caught up — new orders will appear here.</p></div>`;
+            wrap.innerHTML = `<div class="empty-state"><i class="bi bi-bicycle"></i><h6>No jobs available</h6><p>Ready jobs from the last 24 hours show here. Older jobs are in Report.</p></div>`;
             return;
           }
           wrap.innerHTML = list
@@ -274,7 +289,7 @@
         </div>
         <div class="job-row"><i class="bi bi-person-fill"></i> ${o.customer || "-"}</div>
         <div class="job-row"><i class="bi bi-geo-alt-fill"></i> <strong>${o.address}</strong></div>
-        <div class="job-row"><i class="bi bi-bag-fill"></i> ${AG.orderDetails(o)}</div>
+        <div class="job-row"><i class="bi bi-bag-fill"></i> ${jobItems(o)}</div>
         <div class="d-flex justify-content-between align-items-center mt-2">
           <strong class="text-green" style="font-size:1.05rem;">RM ${Number(o.total).toFixed(2)}</strong>
           <div class="d-flex gap-2 align-items-center">

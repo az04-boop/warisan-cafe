@@ -183,7 +183,7 @@
                     </div>
                     <div class="job-row"><i class="bi bi-person-fill"></i> ${escapeHtml(r.customer)}</div>
                     <div class="job-row"><i class="bi bi-geo-alt-fill"></i> <strong>${escapeHtml(r.address)}</strong></div>
-                    <div class="job-row"><i class="bi bi-bag-fill"></i> ${escapeHtml(r.items)}</div>
+                    <div class="job-row"><i class="bi bi-bag-fill"></i> ${escapeHtml(AG.foodOrderDetails ? AG.foodOrderDetails({ items: r.rawItems || [] }) : r.items)}</div>
                     <div class="d-flex justify-content-end mt-2">
                       <a href="${escapeHtml(callHref)}" class="btn btn-sm btn-outline-secondary" style="border-radius:10px;padding:6px 10px;" title="Call customer">
                         <i class="bi bi-telephone-fill"></i>

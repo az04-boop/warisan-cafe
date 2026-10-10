@@ -417,7 +417,12 @@ const AG = (() => {
       return ref.limit(CUSTOMER_ORDER_LIMIT);
     }
     if (s && s.role === "rider") {
-      return ref.where("status", "==", "ready").limit(ORDER_LIST_LIMIT);
+      const cutoff = ordersCutoffIso(24);
+      return ref
+        .where("status", "==", "ready")
+        .where("createdAt", ">=", cutoff)
+        .orderBy("createdAt", "desc")
+        .limit(ORDER_LIST_LIMIT);
     }
     const cutoff = ordersCutoffIso(24);
     return ref
@@ -442,9 +447,18 @@ const AG = (() => {
           (snap) => {
             try {
               const arr = [];
-              snap.forEach((doc) =>
-                arr.push(slimOrder({ id: doc.id, ...doc.data() })),
-              );
+              const s = session();
+              snap.forEach((doc) => {
+                const order = slimOrder({ id: doc.id, ...doc.data() });
+                if (
+                  s &&
+                  s.role === "rider" &&
+                  !isLiveDashboardOrder(order)
+                ) {
+                  return;
+                }
+                arr.push(order);
+              });
               applySnapshot("orders", arr);
               window.dispatchEvent(new Event("ag-data"));
             } catch (err) {
@@ -454,11 +468,6 @@ const AG = (() => {
           },
           (err) => {
             console.warn("orders listen failed", err && err.message);
-            window.dispatchEvent(
-              new CustomEvent("ag-listen-error", {
-                detail: { collection: "orders", message: String(err.message || err) },
-              }),
-            );
             if (!usedFallback && !isFallback) {
               usedFallback = true;
               const s = session();
@@ -478,6 +487,11 @@ const AG = (() => {
               attach(fallback, true);
               return;
             }
+            window.dispatchEvent(
+              new CustomEvent("ag-listen-error", {
+                detail: { collection: "orders", message: String(err.message || err) },
+              }),
+            );
             finish();
           },
         );
@@ -490,7 +504,10 @@ const AG = (() => {
         const cutoff = ordersCutoffIso(24);
         attach(
           s && s.role === "rider"
-            ? db.collection("orders").where("status", "==", "ready").limit(ORDER_LIST_LIMIT)
+            ? db
+                .collection("orders")
+                .where("status", "==", "ready")
+                .limit(ORDER_LIST_LIMIT)
             : db.collection("orders").where("createdAt", ">=", cutoff).limit(ORDER_LIST_LIMIT),
           true,
         );
@@ -2057,14 +2074,20 @@ const AG = (() => {
     return `images/${image}`;
   }
 
-  function orderDetails(o) {
+  function orderDetails(o, options) {
+    const skipFee = options && options.skipDeliveryFee;
     return (o.items || [])
+      .filter((i) => !skipFee || !isDeliveryFeeItem(i))
       .map((i) => {
         const variation = i.variationText || i.variation || "";
         const note = i.note ? ` — Note: ${i.note}` : "";
         return `${i.quantity}x ${i.name}${variation ? ` (${variation})` : ""}${note}`;
       })
       .join(", ");
+  }
+
+  function foodOrderDetails(o) {
+    return orderDetails(o, { skipDeliveryFee: true });
   }
 
   function batchName(bid) {
@@ -2263,7 +2286,8 @@ const AG = (() => {
   }
 
   function isDeliveryFeeItem(item) {
-    return !item || !item.name || String(item.name).startsWith("Delivery Fee");
+    const name = String((item && item.name) || "").trim();
+    return /^delivery(\s+fee)?\b/i.test(name);
   }
 
   function countOrderItems(o) {
@@ -2709,6 +2733,7 @@ const AG = (() => {
     uploadMenuImage,
     uploadProof,
     orderDetails,
+    foodOrderDetails,
     batchName,
     statusBadge,
     kitchenStatus,

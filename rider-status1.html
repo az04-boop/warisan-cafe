@@ -62,10 +62,15 @@
         margin-bottom: 14px;
         box-shadow: var(--shadow);
       }
-      .order-summary .total {
+      .order-summary .addr {
         font-size: 2rem;
         font-weight: 800;
-        margin-bottom: 4px;
+        margin-bottom: 10px;
+        line-height: 1.15;
+      }
+      .order-summary .cust-name {
+        font-weight: 700;
+        margin-bottom: 8px;
       }
       .order-summary .info-line {
         display: flex;
@@ -211,24 +216,20 @@
           }
 
           document.getElementById("title").textContent = "Job " + o.id;
+          const items = AG.foodOrderDetails
+            ? AG.foodOrderDetails(o)
+            : AG.orderDetails(o);
           orderBox.innerHTML = `
       <div class="order-summary">
-        <div class="total">RM ${Number(o.total).toFixed(2)}</div>
+        <div class="addr">${o.address || "-"}</div>
         <div class="info-line"><i class="bi bi-receipt"></i>${o.id}</div>
-        <div class="info-line"><i class="bi bi-bag-fill"></i>${AG.orderDetails(o)}</div>
+        <div class="cust-name">${o.customer || "-"}</div>
+        <div class="info-line"><i class="bi bi-bag-fill"></i>${items}</div>
         <div class="mt-2">${AG.statusBadge(o.status)}</div>
-      </div>
-      <div class="info-card">
-        <span class="icn"><i class="bi bi-person-fill"></i></span>
-        <div><small>Customer</small><strong>${o.customer}</strong></div>
       </div>
       <div class="info-card">
         <span class="icn"><i class="bi bi-telephone-fill"></i></span>
         <div><small>Phone</small><strong>${o.phone || "—"}</strong></div>
-      </div>
-      <div class="info-card">
-        <span class="icn"><i class="bi bi-geo-alt-fill"></i></span>
-        <div><small>Delivery Address</small><strong>${o.address}</strong></div>
       </div>`;
 
           /* ── Show success screen if already delivered ── */
