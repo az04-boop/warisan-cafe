@@ -1261,6 +1261,44 @@ const AG = (() => {
     return n;
   }
 
+  function deliveryTicketPrefix(deliveryType, deliveryName) {
+    const t = String(deliveryType || "").toLowerCase();
+    const n = String(deliveryName || "").toLowerCase();
+    if (t === "fast" || n.includes("fast")) return "FD";
+    if (t === "door" || n.includes("door")) return "DD";
+    return "ND";
+  }
+
+  async function nextTicketId(deliveryType, deliveryName) {
+    const prefix = deliveryTicketPrefix(deliveryType, deliveryName);
+    const pad = (num) => prefix + String(num).padStart(3, "0");
+    if (useFirebase && db) {
+      try {
+        const ref = db.collection("counters").doc(prefix);
+        const seq = await db.runTransaction(async (tx) => {
+          const snap = await tx.get(ref);
+          const n = (snap.exists ? Number(snap.data().seq || 0) : 0) + 1;
+          tx.set(ref, { seq: n });
+          return n;
+        });
+        return pad(seq);
+      } catch (e) {
+        console.warn("ticket id counter skip", e);
+      }
+    }
+    const max = orders().reduce((m, o) => {
+      const hit = String(o.id || "").match(
+        new RegExp("^" + prefix + "(\\d+)$", "i"),
+      );
+      return hit ? Math.max(m, parseInt(hit[1], 10)) : m;
+    }, 0);
+    let id = pad(max + 1);
+    if (orders().some((o) => o.id === id)) {
+      id = prefix + Date.now().toString().slice(-4);
+    }
+    return id;
+  }
+
   async function createOrder(cart, payment, batchId, extra = {}) {
     await init();
     const s = session() || {};
@@ -1287,7 +1325,7 @@ const AG = (() => {
     }
     const receiptId = extra.receiptId || makeId("RCP");
     const order = {
-      id: makeId("ORD"),
+      id: await nextTicketId(extra.deliveryType, extra.deliveryName),
       customer: s.name || "Guest",
       customerUid: useFirebase && auth.currentUser ? auth.currentUser.uid : s.uid || "",
       email: s.email || "",

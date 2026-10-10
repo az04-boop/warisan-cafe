@@ -90,7 +90,7 @@
   }
 
   function rm(n) {
-    return 'RM' + Number(n || 0).toFixed(2);
+    return 'RM ' + Number(n || 0).toFixed(2);
   }
 
   function printOrder(id) {
@@ -114,26 +114,25 @@
         })
       : '';
 
-    const items = (order.items || []).map(item => {
-      const qty = Number(item.quantity || 1);
-      const unit = Number(item.price || 0);
-      const name = String(item.name || 'Item');
-      const fee = name.toLowerCase().includes('delivery');
-      const detail = fee
-        ? ''
-        : [item.variationText || item.variation || '', item.note || '']
-            .filter(t => t && String(t).trim() && String(t).trim() !== '-')
-            .join(', ');
-      return `<div class="item">
-        <div class="iname">${esc(name)}${detail ? ' (' + esc(detail) + ')' : ''}</div>
-        <div class="iqty">${qty} x ${rm(unit)}</div>
-      </div>`;
-    }).join('');
+    const items = (order.items || [])
+      .filter((item) => !String(item.name || '').toLowerCase().includes('delivery'))
+      .map((item) => {
+        const qty = Number(item.quantity || 1);
+        const name = String(item.name || 'Item');
+        const remarks = [item.variationText || item.variation || '', item.note || '']
+          .map((t) => String(t || '').trim())
+          .filter((t) => t && t !== '-' && t.toLowerCase() !== 'normal');
+        return `<div class="item">
+          <div class="iname">${qty}x ${esc(name)}</div>
+          ${remarks.map((r) => `<div class="iremark">${esc(r)}</div>`).join('')}
+        </div>`;
+      })
+      .join('');
 
-    const addr = String(order.addressDetail || order.address || '').trim();
-    const delivery = String(order.deliveryName || order.deliveryType || '').trim();
-    const note = String(order.orderNotes || order.notes || '').trim();
-    const noteOk = note && note !== '-';
+    const batch = (AG.batches() || []).find((b) => b.id === order.batchId);
+    const batchLine = batch
+      ? `${batch.name || 'Batch'} ${batch.start || ''}-${batch.end || ''}`
+      : AG.batchName(order.batchId);
 
     const slipHtml = `<!DOCTYPE html>
 <html>
@@ -159,31 +158,43 @@
       letter-spacing: 0;
       word-spacing: normal;
       text-align: left;
-      white-space: normal;
     }
     .shop {
       text-align: center;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
     }
     .muted {
       text-align: center;
       font-size: 11px;
+      font-weight: 400;
     }
     .dots {
       border: 0;
       border-top: 1px dotted #111;
-      margin: 7px 0;
+      margin: 8px 0;
     }
-    .meta { margin: 1px 0; }
-    .item { margin: 8px 0; }
-    .iname { font-weight: 700; }
-    .iqty { font-size: 11px; margin-top: 1px; }
-    .due {
-      font-size: 14px;
+    .meta { margin: 2px 0; font-weight: 400; }
+    .batch { white-space: nowrap; font-size: 11px; }
+    .sec {
+      font-size: 10px;
       font-weight: 700;
-      margin-top: 4px;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
     }
+    .item { margin: 8px 0; }
+    .iname { font-weight: 700; font-size: 14px; }
+    .iremark {
+      font-weight: 400;
+      font-size: 11px;
+      padding-left: 16px;
+      margin-top: 1px;
+    }
+    .due {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .due span { font-weight: 400; }
   </style>
 </head>
 <body>
@@ -195,14 +206,12 @@
     <div class="meta">Order: ${esc(order.id)}</div>
     <div class="meta">Name: ${esc(order.customer)}</div>
     <div class="meta">Tel: ${esc(order.phone)}</div>
-    ${addr ? `<div class="meta">Addr: ${esc(addr)}</div>` : ''}
-    ${delivery ? `<div class="meta">${esc(delivery)}</div>` : ''}
-    <div class="meta">Batch: ${esc(AG.batchName(order.batchId))}</div>
+    <div class="meta batch">Batch: ${esc(batchLine)}</div>
     <hr class="dots">
-    ${items}
+    <div class="sec">ITEMS</div>
+    ${items || '<div class="meta">-</div>'}
     <hr class="dots">
     <div class="due">Amount due<br>${rm(order.total)}</div>
-    ${noteOk ? `<div class="meta" style="margin-top:8px">Note: ${esc(note)}</div>` : ''}
   </div>
 </body>
 </html>`;

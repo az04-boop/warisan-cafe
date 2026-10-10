@@ -64,6 +64,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /counters/{counterId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.seq is int
+        && request.resource.data.seq == 1;
+      allow update: if signedIn()
+        && request.resource.data.seq is int
+        && request.resource.data.seq == resource.data.seq + 1;
+    }
+
     match /orders/{orderId} {
       allow read: if isStaff()
         || (signedIn() && resource.data.customerUid == request.auth.uid);
