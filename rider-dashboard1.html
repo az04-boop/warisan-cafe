@@ -224,6 +224,10 @@
         };
         renderRiderSelect();
         window.addEventListener("ag-data", renderRiderSelect);
+        window.addEventListener("ag-listen-error", (e) => {
+          const msg = (e.detail && e.detail.message) || "Could not load rider data.";
+          AG.toast("Could not load", msg);
+        });
 
         document.querySelectorAll(".filter-tab").forEach((tab) =>
           tab.addEventListener("click", () => {

@@ -188,13 +188,12 @@ const AG = (() => {
     }
     if (s && s.role) return s;
     try {
-      const staffSnap = await db.collection("staff").doc(user.uid).get();
-      if (staffSnap.exists) {
-        const account = staffSnap.data() || {};
+      const account = await staffRecordForUser(user);
+      if (account && (account.role === "admin" || account.role === "rider")) {
         s = {
           role: account.role,
           uid: user.uid,
-          id: staffSnap.id,
+          id: account.id,
           name: account.name || user.displayName || "Staff",
           email: user.email || account.email || "",
           phone: account.phone || "",
@@ -455,6 +454,11 @@ const AG = (() => {
           },
           (err) => {
             console.warn("orders listen failed", err && err.message);
+            window.dispatchEvent(
+              new CustomEvent("ag-listen-error", {
+                detail: { collection: "orders", message: String(err.message || err) },
+              }),
+            );
             if (!usedFallback && !isFallback) {
               usedFallback = true;
               const s = session();
@@ -534,6 +538,11 @@ const AG = (() => {
         },
         (err) => {
           console.warn(`Firebase read skipped: ${name}`, err && err.message);
+          window.dispatchEvent(
+            new CustomEvent("ag-listen-error", {
+              detail: { collection: name, message: String(err.message || err) },
+            }),
+          );
           finish();
         },
       );
@@ -545,9 +554,11 @@ const AG = (() => {
     await bootFirebase();
     if (!useFirebase || !db) return;
     const needed = [...new Set(names)].filter(Boolean);
+    const s = session();
+    const waitMs = s && s.role === "rider" ? 8000 : 400;
     await Promise.race([
       Promise.all(needed.map((name) => listenCollection(name))),
-      new Promise((r) => setTimeout(r, 400)),
+      new Promise((r) => setTimeout(r, waitMs)),
     ]);
   }
 
@@ -998,6 +1009,22 @@ const AG = (() => {
       throw new Error(
         "This account is not registered as staff. In Firestore, add collection staff, document ID = this user's UID, field role = admin or rider.",
       );
+    }
+    if (account.id !== cred.user.uid) {
+      try {
+        const uidRef = db.collection("staff").doc(cred.user.uid);
+        const uidSnap = await uidRef.get();
+        if (!uidSnap.exists) {
+          await uidRef.set({
+            role: account.role,
+            email: cred.user.email || account.email || email,
+            name: account.name || "",
+            phone: account.phone || "",
+          });
+        }
+      } catch (e) {
+        console.warn("staff uid record skipped", e);
+      }
     }
     localSet("agSession", {
       role: account.role,

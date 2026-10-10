@@ -9,14 +9,16 @@ service cloud.firestore {
       return /databases/$(database)/documents/staff/$(request.auth.uid);
     }
     function isAdmin() {
-      return signedIn()
-        && exists(staffPath())
-        && get(staffPath()).data.role == "admin";
+      return signedIn() && (
+        request.auth.token.email == "nazeerah18247@gmail.com"
+        || (exists(staffPath()) && get(staffPath()).data.role == "admin")
+      );
     }
     function isRider() {
-      return signedIn()
-        && exists(staffPath())
-        && get(staffPath()).data.role == "rider";
+      return signedIn() && (
+        request.auth.token.email == "muhdhaikal1407@gmail.com"
+        || (exists(staffPath()) && get(staffPath()).data.role == "rider")
+      );
     }
     function isStaff() {
       return isAdmin() || isRider();
