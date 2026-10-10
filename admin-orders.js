@@ -24,7 +24,9 @@
     const search = (els.orderSearchInput.value || '').trim().toLowerCase();
     const statusFilter = els.orderStatusFilter.value || 'all';
     const sortBy = els.orderSortSelect.value || 'newest';
-    let list = [...AG.orders()];
+    let list = [...AG.orders()].filter((order) =>
+      AG.isLiveDashboardOrder ? AG.isLiveDashboardOrder(order) : true,
+    );
 
     if (statusFilter !== 'all') {
       list = list.filter(order => AG.kitchenStatus(order.status) === statusFilter || order.status === statusFilter);
@@ -291,6 +293,7 @@
 
   function pendingOrders() {
     return AG.orders().filter(o =>
+      AG.isLiveDashboardOrder(o) &&
       (o.paymentStatus === 'awaiting_verification' || o.status === 'awaiting_verification') &&
       o.paymentStatus !== 'rejected' &&
       o.paymentStatus !== 'verified'
@@ -597,5 +600,6 @@
 
     renderOrders();
     window.addEventListener('ag-data', () => { checkNewOrders(); renderOrders(); });
+    setInterval(renderOrders, 60000);
   });
 })();

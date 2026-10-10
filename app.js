@@ -373,6 +373,15 @@ const AG = (() => {
     return o;
   }
 
+  function ordersCutoffIso(hours) {
+    return new Date(Date.now() - Number(hours || 24) * 60 * 60 * 1000).toISOString();
+  }
+
+  function isLiveDashboardOrder(o) {
+    const t = new Date(o && o.createdAt ? o.createdAt : 0).getTime();
+    return Number.isFinite(t) && Date.now() - t < 24 * 60 * 60 * 1000;
+  }
+
   function ordersRefForSession() {
     const s = session();
     let ref = db.collection("orders");
@@ -381,7 +390,11 @@ const AG = (() => {
       else if (s.email) ref = ref.where("email", "==", s.email);
       return ref.limit(CUSTOMER_ORDER_LIMIT);
     }
-    return ref.orderBy("createdAt", "desc").limit(ORDER_LIST_LIMIT);
+    const cutoff = ordersCutoffIso(24);
+    return ref
+      .where("createdAt", ">=", cutoff)
+      .orderBy("createdAt", "desc")
+      .limit(ORDER_LIST_LIMIT);
   }
 
   function listenOrders() {
@@ -414,7 +427,16 @@ const AG = (() => {
             console.warn("orders listen failed", err && err.message);
             if (!usedFallback && !isFallback) {
               usedFallback = true;
-              attach(db.collection("orders").limit(ORDER_LIST_LIMIT), true);
+              const s = session();
+              const cutoff = ordersCutoffIso(24);
+              const fallback =
+                s && s.role === "customer"
+                  ? db.collection("orders").limit(CUSTOMER_ORDER_LIMIT)
+                  : db
+                      .collection("orders")
+                      .where("createdAt", ">=", cutoff)
+                      .limit(ORDER_LIST_LIMIT);
+              attach(fallback, true);
               return;
             }
             finish();
@@ -425,7 +447,11 @@ const AG = (() => {
       try {
         attach(ordersRefForSession(), false);
       } catch (err) {
-        attach(db.collection("orders").limit(ORDER_LIST_LIMIT), true);
+        const cutoff = ordersCutoffIso(24);
+        attach(
+          db.collection("orders").where("createdAt", ">=", cutoff).limit(ORDER_LIST_LIMIT),
+          true,
+        );
       }
     });
   }
@@ -1983,6 +2009,114 @@ const AG = (() => {
     }
   }
 
+  async function fetchOrdersForReport(fromIso, toIso) {
+    await init();
+    const s = session();
+    if (!s || s.role !== "admin") {
+      throw new Error("Only admin can download the orders report.");
+    }
+    const from = fromIso || ordersCutoffIso(30 * 24);
+    const to = toIso || new Date().toISOString();
+    const mapRow = (o) => ({
+      id: o.id,
+      createdAt: o.createdAt || "",
+      customer: o.customer || "",
+      phone: o.phone || "",
+      email: o.email || "",
+      address: o.address || "",
+      batch: batchName(o.batchId),
+      delivery: o.deliveryName || o.deliveryType || "",
+      items: orderDetails(o),
+      total: Number(o.total || 0),
+      status: STEP_LABELS[kitchenStatus(o.status)] || o.status || "",
+      paymentStatus: o.paymentStatus || "",
+      notes: o.orderNotes || o.notes || "",
+    });
+    if (!useFirebase || !db) {
+      return orders()
+        .filter((o) => {
+          const t = o.createdAt || "";
+          return t >= from && t <= to;
+        })
+        .map(mapRow);
+    }
+    const out = [];
+    let last = null;
+    for (let i = 0; i < 20; i++) {
+      let q = db
+        .collection("orders")
+        .where("createdAt", ">=", from)
+        .where("createdAt", "<=", to)
+        .orderBy("createdAt", "desc")
+        .limit(100);
+      if (last) q = q.startAfter(last);
+      const snap = await q.get();
+      if (snap.empty) break;
+      snap.forEach((doc) => {
+        out.push(mapRow(slimOrder({ id: doc.id, ...doc.data() })));
+        last = doc;
+      });
+      if (snap.size < 100) break;
+    }
+    return out;
+  }
+
+  function downloadOrdersExcel(rows, filename) {
+    const headers = [
+      "Order ID",
+      "Date",
+      "Customer",
+      "Phone",
+      "Email",
+      "Address",
+      "Batch",
+      "Delivery",
+      "Items",
+      "Total (RM)",
+      "Status",
+      "Payment",
+      "Notes",
+    ];
+    const table = (rows || []).map((r) => [
+      r.id,
+      r.createdAt ? new Date(r.createdAt).toLocaleString("en-MY") : "",
+      r.customer,
+      r.phone,
+      r.email,
+      r.address,
+      r.batch,
+      r.delivery,
+      r.items,
+      Number(r.total || 0).toFixed(2),
+      r.status,
+      r.paymentStatus,
+      r.notes,
+    ]);
+    const name = filename || "warisan-orders.xlsx";
+    if (window.XLSX) {
+      const wb = window.XLSX.utils.book_new();
+      const ws = window.XLSX.utils.aoa_to_sheet([headers, ...table]);
+      window.XLSX.utils.book_append_sheet(wb, ws, "Orders");
+      window.XLSX.writeFile(wb, name);
+      return;
+    }
+    const csv = [headers, ...table]
+      .map((line) =>
+        line
+          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+          .join(","),
+      )
+      .join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name.replace(/\.xlsx$/i, ".csv");
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   function getCustomerOrders(customer = session()) {
     const s = customer || {};
     return orders().filter(
@@ -2206,6 +2340,9 @@ const AG = (() => {
     batches,
     saveBatches,
     orders,
+    isLiveDashboardOrder,
+    fetchOrdersForReport,
+    downloadOrdersExcel,
     saveOrders,
     notifications,
     chatMessages,
