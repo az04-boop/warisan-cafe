@@ -187,13 +187,14 @@
     <script src="app.js"></script>
     <script>
       (async () => {
-        await AG.requireRole(["rider"]);
+        await AG.requireRole(["rider"], ["riders"]);
         const params = new URLSearchParams(location.search);
         const oid = params.get("order");
         let proofUrl = "";
+        let loaded = oid && AG.fetchOrderById ? await AG.fetchOrderById(oid) : null;
 
         function current() {
-          return AG.orders().find((o) => o.id === oid);
+          return AG.orders().find((o) => o.id === oid) || loaded;
         }
 
         window.render = function () {

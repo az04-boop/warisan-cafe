@@ -308,7 +308,7 @@
       }
 
       (async () => {
-        const s = await AG.requireRole(["rider"], ["orders"]);
+        const s = await AG.requireRole(["rider"], []);
         if (!s) return;
 
         if (!orderId) {
@@ -318,13 +318,9 @@
           return;
         }
 
-        /* Wait up to 5s for Firebase to load the order */
-        let order = null;
-        for (let i = 0; i < 10; i++) {
-          order = AG.orders().find((o) => o.id === orderId);
-          if (order) break;
-          await new Promise((r) => setTimeout(r, 500));
-        }
+        let order = AG.fetchOrderById
+          ? await AG.fetchOrderById(orderId)
+          : AG.orders().find((o) => o.id === orderId);
 
         if (!order) {
           document.getElementById("deliveryCard").innerHTML =

@@ -417,6 +417,9 @@ const AG = (() => {
       else if (s.email) ref = ref.where("email", "==", s.email);
       return ref.limit(CUSTOMER_ORDER_LIMIT);
     }
+    if (s && s.role === "rider") {
+      return ref.where("status", "==", "ready").limit(ORDER_LIST_LIMIT);
+    }
     const cutoff = ordersCutoffIso(24);
     return ref
       .where("createdAt", ">=", cutoff)
@@ -459,10 +462,15 @@ const AG = (() => {
               const fallback =
                 s && s.role === "customer"
                   ? db.collection("orders").limit(CUSTOMER_ORDER_LIMIT)
-                  : db
-                      .collection("orders")
-                      .where("createdAt", ">=", cutoff)
-                      .limit(ORDER_LIST_LIMIT);
+                  : s && s.role === "rider"
+                    ? db
+                        .collection("orders")
+                        .where("status", "==", "ready")
+                        .limit(ORDER_LIST_LIMIT)
+                    : db
+                        .collection("orders")
+                        .where("createdAt", ">=", cutoff)
+                        .limit(ORDER_LIST_LIMIT);
               attach(fallback, true);
               return;
             }
@@ -474,13 +482,31 @@ const AG = (() => {
       try {
         attach(ordersRefForSession(), false);
       } catch (err) {
+        const s = session();
         const cutoff = ordersCutoffIso(24);
         attach(
-          db.collection("orders").where("createdAt", ">=", cutoff).limit(ORDER_LIST_LIMIT),
+          s && s.role === "rider"
+            ? db.collection("orders").where("status", "==", "ready").limit(ORDER_LIST_LIMIT)
+            : db.collection("orders").where("createdAt", ">=", cutoff).limit(ORDER_LIST_LIMIT),
           true,
         );
       }
     });
+  }
+
+  async function fetchOrderById(orderId) {
+    await init();
+    if (!orderId) return null;
+    const cached = orders().find((o) => o.id === orderId);
+    if (cached) return cached;
+    if (!useFirebase || !db) return null;
+    const snap = await db.collection("orders").doc(orderId).get();
+    if (!snap.exists) return null;
+    const order = slimOrder({ id: snap.id, ...snap.data() });
+    const index = cache.orders.findIndex((o) => o.id === order.id);
+    if (index >= 0) cache.orders[index] = { ...cache.orders[index], ...order };
+    else cache.orders.unshift(order);
+    return order;
   }
 
   function listenCollection(name) {
@@ -1662,28 +1688,62 @@ const AG = (() => {
 
   async function persistOrderReceipt(orderId, receiptFields) {
     await init();
-    const applyLocal = () => {
+    const photo = receiptFields.receiptDataUrl || "";
+    const meta = {
+      hasReceipt: !!(photo || receiptFields.hasReceipt),
+      receiptFileName: receiptFields.receiptFileName || "",
+      receiptContentType: receiptFields.receiptContentType || "",
+      receiptUploadedAt: receiptFields.receiptUploadedAt || nowISO(),
+      receiptPath: receiptFields.receiptPath || "",
+      receiptUrl: receiptFields.receiptUrl || "",
+      updatedAt: receiptFields.updatedAt || nowISO(),
+    };
+    const applyLocal = (stored) => {
       const index = cache.orders.findIndex((o) => o.id === orderId);
       if (index >= 0)
-        cache.orders[index] = { ...cache.orders[index], ...receiptFields };
+        cache.orders[index] = { ...cache.orders[index], ...stored };
       window.dispatchEvent(new Event("ag-data"));
     };
     if (useFirebase) {
+      let offOrder = false;
+      if (photo) {
+        try {
+          await db.collection("receipts").doc(orderId).set({
+            ...meta,
+            orderId,
+            receiptDataUrl: photo,
+          });
+          offOrder = true;
+        } catch (err) {
+          console.warn("receipts collection skipped", err && err.message);
+        }
+      }
+      const orderPatch = { ...meta };
+      if (offOrder) {
+        orderPatch.receiptDataUrl = firebase.firestore.FieldValue.delete();
+      } else if (photo) {
+        orderPatch.receiptDataUrl = photo;
+      }
       try {
-        await db.collection("orders").doc(orderId).set(receiptFields, {
+        await db.collection("orders").doc(orderId).set(orderPatch, {
           merge: true,
         });
       } catch (err) {
-        if (!receiptFields.receiptDataUrl) throw err;
-        const rest = { ...receiptFields, receiptDataUrl: "" };
+        if (!photo) throw err;
+        const rest = { ...meta, receiptDataUrl: "" };
         await db.collection("orders").doc(orderId).set(rest, { merge: true });
-        receiptFields = rest;
+        applyLocal(rest);
+        return;
       }
-      applyLocal();
+      applyLocal({
+        ...meta,
+        receiptDataUrl: offOrder ? "" : photo,
+      });
       return;
     }
+    const stored = { ...meta, receiptDataUrl: photo };
     const all = orders().map((o) =>
-      o.id === orderId ? { ...o, ...receiptFields } : o,
+      o.id === orderId ? { ...o, ...stored } : o,
     );
     cache.orders = all;
     localSet("agOrders", all);
@@ -1859,6 +1919,18 @@ const AG = (() => {
     const cached = orders().find((o) => o.id === orderId);
     if (cached && receiptSrc(cached)) return cached;
     if (useFirebase && db && orderId) {
+      try {
+        const rec = await db.collection("receipts").doc(orderId).get();
+        if (rec.exists && receiptSrc(rec.data())) {
+          const orderSnap = await db.collection("orders").doc(orderId).get();
+          const base = orderSnap.exists
+            ? { id: orderSnap.id, ...orderSnap.data() }
+            : cached || { id: orderId };
+          return { ...base, ...rec.data(), id: orderId };
+        }
+      } catch (err) {
+        console.warn("receipts read skipped", err && err.message);
+      }
       const snap = await db.collection("orders").doc(orderId).get();
       if (snap.exists) {
         return { id: snap.id, ...snap.data() };
@@ -2603,6 +2675,7 @@ const AG = (() => {
     verifyPayment,
     rejectPayment,
     openReceiptFile,
+    fetchOrderById,
     loadOrderReceipt,
     loadOrderProof,
     paymentBadge,

@@ -74,6 +74,19 @@ service cloud.firestore {
         && request.resource.data.seq == resource.data.seq + 1;
     }
 
+    match /receipts/{orderId} {
+      allow read: if isAdmin()
+        || (signedIn()
+            && exists(/databases/$(database)/documents/orders/$(orderId))
+            && get(/databases/$(database)/documents/orders/$(orderId)).data.customerUid
+              == request.auth.uid);
+      allow create, update: if signedIn()
+        && exists(/databases/$(database)/documents/orders/$(orderId))
+        && get(/databases/$(database)/documents/orders/$(orderId)).data.customerUid
+          == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     match /orders/{orderId} {
       allow read: if isStaff()
         || (signedIn() && resource.data.customerUid == request.auth.uid);
