@@ -146,6 +146,9 @@ const AG = (() => {
   }
 
   async function logout(options) {
+    const s = session();
+    const staffLogin =
+      s && (s.role === "admin" || s.role === "rider");
     try {
       await init();
       if (useFirebase && auth && auth.currentUser) await auth.signOut();
@@ -153,7 +156,9 @@ const AG = (() => {
       console.warn("Logout warning:", e);
     }
     localStorage.removeItem("agSession");
-    if (!(options && options.stay)) window.location.href = "login1.html";
+    if (!(options && options.stay)) {
+      window.location.href = staffLogin ? "staff-login1.html" : "login1.html";
+    }
   }
 
   function waitForAuth() {
