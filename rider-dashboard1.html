@@ -133,9 +133,8 @@
       <div class="page-pad">
         <div class="summary-card mb-3 p-3" style="background:#fff;border-radius:16px;box-shadow:var(--shadow-sm)">
           <label class="form-label fw-bold mb-1">I am delivering as</label>
-          <p class="small-muted mb-2">Pick your name before you accept a job. The customer can then call your number. Add a phone if it is missing.</p>
+          <p class="small-muted mb-2">Choose the name admin added under Rider. You cannot add a rider here. The customer can then call that number.</p>
           <select id="activeRiderSelect" class="form-select"></select>
-          <input id="riderPhoneFill" class="form-control mt-2 d-none" type="tel" placeholder="Your phone number" />
         </div>
 
         <div class="rider-stats">
@@ -182,41 +181,26 @@
           "Rider Dashboard",
           "rider",
         );
-        const phoneFill = document.getElementById("riderPhoneFill");
-        function riderList() {
-          return AG.selectableRiders ? AG.selectableRiders() : AG.riders();
-        }
         function selectedRider() {
           const id = document.getElementById("activeRiderSelect").value;
-          const found = riderList().find((r) => r.id === id) || riderList()[0] || null;
-          if (!found) return null;
-          const typed = (phoneFill.value || "").trim();
-          return { ...found, phone: found.phone || typed || s.phone || "" };
-        }
-        function syncPhoneFill() {
-          const id = document.getElementById("activeRiderSelect").value;
-          const found = riderList().find((r) => r.id === id) || riderList()[0];
-          const needsPhone = !found || !String(found.phone || "").trim();
-          phoneFill.classList.toggle("d-none", !needsPhone);
+          return AG.riders().find((r) => r.id === id) || AG.riders()[0] || null;
         }
         function renderRiderSelect() {
           const sel = document.getElementById("activeRiderSelect");
-          const list = riderList();
-          const current = AG.get("agActiveRiderId", "") || s.uid || s.id || "";
+          const list = AG.riders();
+          const current = AG.get("agActiveRiderId", "");
           sel.innerHTML = list.length
             ? list
                 .map(
                   (r) =>
-                    `<option value="${r.id}">${r.name}${r.phone ? " · " + r.phone : ""}</option>`,
+                    `<option value="${r.id}">${r.name} · ${r.phone}</option>`,
                 )
                 .join("")
-            : '<option value="">No rider yet</option>';
+            : '<option value="">No rider yet — ask admin to add one</option>';
           if (current && list.some((r) => r.id === current)) sel.value = current;
-          syncPhoneFill();
         }
         document.getElementById("activeRiderSelect").addEventListener("change", (e) => {
           AG.set("agActiveRiderId", e.target.value);
-          syncPhoneFill();
         });
         window.acceptJobAndOpen = async function (orderId, alreadyAccepted) {
           if (alreadyAccepted) {

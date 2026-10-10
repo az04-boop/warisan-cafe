@@ -1008,28 +1008,6 @@ const AG = (() => {
     return cache.riders.length ? cache.riders : localGet("agRiders", []);
   }
 
-  function selectableRiders() {
-    const list = [...riders()];
-    const s = session();
-    if (s && s.role === "rider") {
-      const self = {
-        id: s.uid || s.id || "self",
-        name: String(s.name || "Rider").trim() || "Rider",
-        phone: String(s.phone || "").trim(),
-      };
-      const exists = list.some((r) => {
-        if (r.id && self.id && r.id === self.id) return true;
-        const sameName =
-          String(r.name || "").trim().toLowerCase() === self.name.toLowerCase();
-        const rp = String(r.phone || "").replace(/\D/g, "");
-        const sp = self.phone.replace(/\D/g, "");
-        return sameName && sp && rp === sp;
-      });
-      if (!exists) list.unshift(self);
-    }
-    return list;
-  }
-
   async function saveRider(rider) {
     await init();
     const name = String(rider.name || "").trim();
@@ -2586,7 +2564,6 @@ const AG = (() => {
     needsCustomerIdentity,
     requireEmailPhone,
     riders,
-    selectableRiders,
     saveRider,
     deleteRider,
     acceptJob,

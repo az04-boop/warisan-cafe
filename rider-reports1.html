@@ -124,20 +124,17 @@
         fromEl.value = isoDay(from);
         toEl.value = isoDay(today);
 
-        function riderList() {
-          return AG.selectableRiders ? AG.selectableRiders() : AG.riders();
-        }
         function renderRiderSelect() {
-          const list = riderList();
-          const current = AG.get("agActiveRiderId", "") || s.uid || s.id || "";
+          const list = AG.riders();
+          const current = AG.get("agActiveRiderId", "");
           sel.innerHTML = list.length
             ? list
                 .map(
                   (r) =>
-                    `<option value="${r.id}">${r.name}${r.phone ? " · " + r.phone : ""}</option>`,
+                    `<option value="${r.id}">${r.name} · ${r.phone}</option>`,
                 )
                 .join("")
-            : '<option value="">All riders</option>';
+            : '<option value="">No rider yet — ask admin to add one</option>';
           if (current && list.some((r) => r.id === current)) sel.value = current;
         }
         sel.addEventListener("change", () => AG.set("agActiveRiderId", sel.value));
@@ -156,7 +153,7 @@
 
         function selectedRider() {
           const id = sel.value;
-          return riderList().find((r) => r.id === id) || null;
+          return AG.riders().find((r) => r.id === id) || null;
         }
 
         function escapeHtml(value) {
